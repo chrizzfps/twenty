@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import { isDefined } from 'class-validator';
 import { type ObjectRecord } from 'twenty-shared/types';
 import { In, MoreThan } from 'typeorm';
 
 import { objectRecordDiffMerge } from 'src/engine/core-modules/event-emitter/utils/object-record-diff-merge';
+import { WorkspaceManyOrAllFlatEntityMapsCacheService } from 'src/engine/metadata-modules/flat-entity/services/workspace-many-or-all-flat-entity-maps-cache.service';
+import { buildFieldMapsFromFlatObjectMetadata } from 'src/engine/metadata-modules/flat-field-metadata/utils/build-field-maps-from-flat-object-metadata.util';
 import { GlobalWorkspaceOrmManager } from 'src/engine/twenty-orm/global-workspace-datasource/global-workspace-orm.manager';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
 import { type TimelineActivityPayload } from 'src/modules/timeline/types/timeline-activity-payload';
@@ -20,8 +22,11 @@ type TimelineActivityPayloadWorkspaceIdAndObjectSingularName = {
 
 @Injectable()
 export class TimelineActivityRepository {
+  private readonly logger = new Logger(TimelineActivityRepository.name);
+
   constructor(
     private readonly globalWorkspaceOrmManager: GlobalWorkspaceOrmManager,
+    private readonly workspaceManyOrAllFlatEntityMapsCacheService: WorkspaceManyOrAllFlatEntityMapsCacheService,
   ) {}
 
   async upsertTimelineActivities({
@@ -29,6 +34,23 @@ export class TimelineActivityRepository {
     workspaceId,
     payloads,
   }: TimelineActivityPayloadWorkspaceIdAndObjectSingularName) {
+    const timelineActivityPropertyName =
+      await this.getTimelineActivityPropertyName(objectSingularName);
+
+    const hasMorphRelationField =
+      await this.hasTimelineActivityMorphRelationField(
+        workspaceId,
+        timelineActivityPropertyName,
+      );
+
+    if (!hasMorphRelationField) {
+      this.logger.warn(
+        `Skipping timeline activity upsert: morph relation field "${timelineActivityPropertyName}" is missing in timelineActivity metadata for object "${objectSingularName}" in workspace ${workspaceId}. Run workspace:sync-metadata to fix.`,
+      );
+
+      return;
+    }
+
     const authContext = buildSystemAuthContext(workspaceId);
 
     await this.globalWorkspaceOrmManager.executeInWorkspaceContext(async () => {
@@ -195,5 +217,35 @@ export class TimelineActivityRepository {
 
   private async getTimelineActivityPropertyName(objectSingularName: string) {
     return `${buildTimelineActivityRelatedMorphFieldMetadataName(objectSingularName)}Id`;
+  }
+
+  private async hasTimelineActivityMorphRelationField(
+    workspaceId: string,
+    joinColumnName: string,
+  ): Promise<boolean> {
+    const { flatFieldMetadataMaps, flatObjectMetadataMaps } =
+      await this.workspaceManyOrAllFlatEntityMapsCacheService.getOrRecomputeManyOrAllFlatEntityMaps(
+        {
+          workspaceId,
+          flatMapsKeys: ['flatFieldMetadataMaps', 'flatObjectMetadataMaps'],
+        },
+      );
+
+    const timelineActivityObjectMetadata = Object.values(
+      flatObjectMetadataMaps.byId,
+    ).find(
+      (objectMetadata) => objectMetadata?.nameSingular === 'timelineActivity',
+    );
+
+    if (!timelineActivityObjectMetadata) {
+      return false;
+    }
+
+    const { fieldIdByJoinColumnName } = buildFieldMapsFromFlatObjectMetadata(
+      flatFieldMetadataMaps,
+      timelineActivityObjectMetadata,
+    );
+
+    return isDefined(fieldIdByJoinColumnName[joinColumnName]);
   }
 }
