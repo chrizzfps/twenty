@@ -17,13 +17,6 @@ export type AuthLoginOAuthOptions = {
 export type OAuthDiscoveryResponse = {
   authorization_endpoint: string;
   token_endpoint: string;
-  cli_client_id: string | null;
-};
-
-export type OAuthTokenResponse = {
-  applicationAccessToken: string;
-  applicationRefreshToken: string;
-  expiresIn: number;
 };
 
 const innerAuthLoginOAuth = async (
@@ -56,17 +49,6 @@ const innerAuthLoginOAuth = async (
     };
   }
 
-  if (!discovery.cli_client_id) {
-    return {
-      success: false,
-      error: {
-        code: AUTH_ERROR_CODES.OAUTH_NOT_SUPPORTED,
-        message:
-          'Server does not support CLI OAuth login. Use --api-key instead.',
-      },
-    };
-  }
-
   // Step 2: Generate PKCE challenge
   const { codeVerifier, codeChallenge } = generatePkceChallenge();
 
@@ -77,7 +59,6 @@ const innerAuthLoginOAuth = async (
     // Step 4: Open browser to authorization endpoint
     const authUrl = new URL(discovery.authorization_endpoint);
 
-    authUrl.searchParams.set('clientId', discovery.cli_client_id);
     authUrl.searchParams.set('codeChallenge', codeChallenge);
     authUrl.searchParams.set('redirectUrl', callbackServer.callbackUrl);
 
@@ -106,7 +87,6 @@ const innerAuthLoginOAuth = async (
     const tokenResponse = await axios.post(discovery.token_endpoint, {
       grant_type: 'authorization_code',
       code: callbackResult.code,
-      client_id: discovery.cli_client_id,
       code_verifier: codeVerifier,
       redirect_uri: callbackServer.callbackUrl,
     });
@@ -121,7 +101,6 @@ const innerAuthLoginOAuth = async (
       apiUrl,
       applicationAccessToken,
       applicationRefreshToken,
-      oauthClientId: discovery.cli_client_id,
     });
 
     // Step 8: Validate the token works

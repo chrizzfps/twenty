@@ -347,19 +347,11 @@ export class ApplicationRegistrationService {
       oAuthRedirectUris: [],
       oAuthScopes: TWENTY_CLI_APPLICATION_REGISTRATION.oAuthScopes,
       ownerWorkspaceId: null,
-      sourceType: ApplicationRegistrationSourceType.LOCAL,
+      sourceType: ApplicationRegistrationSourceType.OAUTH_ONLY,
       createdByUserId: null,
     });
 
     return this.applicationRegistrationRepository.save(registration);
-  }
-
-  async findManyBySourceType(
-    sourceType: ApplicationRegistrationSourceType,
-  ): Promise<ApplicationRegistrationEntity[]> {
-    return this.applicationRegistrationRepository.find({
-      where: { sourceType },
-    });
   }
 
   async findManyListed(): Promise<ApplicationRegistrationEntity[]> {
