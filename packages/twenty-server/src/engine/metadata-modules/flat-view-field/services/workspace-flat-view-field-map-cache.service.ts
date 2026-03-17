@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
+import { isDefined } from 'twenty-shared/utils';
 import { Repository } from 'typeorm';
 
 import { WorkspaceCacheProvider } from 'src/engine/workspace-cache/interfaces/workspace-cache-provider.service';
@@ -20,6 +21,10 @@ import { addFlatEntityToFlatEntityMapsThroughMutationOrThrow } from 'src/engine/
 @Injectable()
 @WorkspaceCache('flatViewFieldMaps')
 export class WorkspaceFlatViewFieldMapCacheService extends WorkspaceCacheProvider<FlatViewFieldMaps> {
+  private readonly logger = new Logger(
+    WorkspaceFlatViewFieldMapCacheService.name,
+  );
+
   constructor(
     @InjectRepository(ViewFieldEntity)
     private readonly viewFieldRepository: Repository<ViewFieldEntity>,
@@ -73,9 +78,30 @@ export class WorkspaceFlatViewFieldMapCacheService extends WorkspaceCacheProvide
     const viewFieldGroupIdToUniversalIdentifierMap =
       createIdToUniversalIdentifierMap(viewFieldGroups);
 
+    // Parallel queries without a shared transaction can observe different
+    // snapshots under READ COMMITTED isolation. A concurrent FieldMetadata
+    // hard-delete (with FK CASCADE on ViewField) that commits between the
+    // ViewField and FieldMetadata queries leaves orphaned ViewField rows
+    // in the result set. Filter them out to avoid failing the entire cache.
+    const consistentViewFields = viewFields.filter((viewFieldEntity) => {
+      const hasFieldMetadata = isDefined(
+        fieldMetadataIdToUniversalIdentifierMap.get(
+          viewFieldEntity.fieldMetadataId,
+        ),
+      );
+
+      if (!hasFieldMetadata) {
+        this.logger.warn(
+          `Skipping orphaned ViewField ${viewFieldEntity.id}: FieldMetadata ${viewFieldEntity.fieldMetadataId} not found (workspace ${workspaceId})`,
+        );
+      }
+
+      return hasFieldMetadata;
+    });
+
     const flatViewFieldMaps = createEmptyFlatEntityMaps();
 
-    for (const viewFieldEntity of viewFields) {
+    for (const viewFieldEntity of consistentViewFields) {
       const flatViewField = fromViewFieldEntityToFlatViewField({
         entity: viewFieldEntity,
         applicationIdToUniversalIdentifierMap,

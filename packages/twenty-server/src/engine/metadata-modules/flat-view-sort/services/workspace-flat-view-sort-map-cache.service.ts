@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
+import { isDefined } from 'twenty-shared/utils';
 import { Repository } from 'typeorm';
 
 import { WorkspaceCacheProvider } from 'src/engine/workspace-cache/interfaces/workspace-cache-provider.service';
@@ -19,6 +20,10 @@ import { createIdToUniversalIdentifierMap } from 'src/engine/workspace-cache/uti
 @Injectable()
 @WorkspaceCache('flatViewSortMaps')
 export class WorkspaceFlatViewSortMapCacheService extends WorkspaceCacheProvider<FlatViewSortMaps> {
+  private readonly logger = new Logger(
+    WorkspaceFlatViewSortMapCacheService.name,
+  );
+
   constructor(
     @InjectRepository(ViewSortEntity)
     private readonly viewSortRepository: Repository<ViewSortEntity>,
@@ -63,9 +68,23 @@ export class WorkspaceFlatViewSortMapCacheService extends WorkspaceCacheProvider
     const fieldMetadataIdToUniversalIdentifierMap =
       createIdToUniversalIdentifierMap(fieldMetadatas);
 
+    const consistentViewSorts = existingViewSorts.filter((viewSort) => {
+      const hasFieldMetadata = isDefined(
+        fieldMetadataIdToUniversalIdentifierMap.get(viewSort.fieldMetadataId),
+      );
+
+      if (!hasFieldMetadata) {
+        this.logger.warn(
+          `Skipping orphaned ViewSort ${viewSort.id}: FieldMetadata ${viewSort.fieldMetadataId} not found (workspace ${workspaceId})`,
+        );
+      }
+
+      return hasFieldMetadata;
+    });
+
     const flatViewSortMaps = createEmptyFlatEntityMaps();
 
-    for (const viewSort of existingViewSorts) {
+    for (const viewSort of consistentViewSorts) {
       const flatViewSort = fromViewSortEntityToFlatViewSort({
         entity: viewSort,
         applicationIdToUniversalIdentifierMap,
