@@ -1,5 +1,5 @@
 import { CommandModal } from '@/command-menu-item/display/components/CommandModal';
-import { useSelectedRecordIdOrThrow } from '@/command-menu-item/record/single-record/hooks/useSelectedRecordIdOrThrow';
+import { useSelectedRecordIdOrNull } from '@/command-menu-item/record/single-record/hooks/useSelectedRecordIdOrNull';
 import { useDestroyOneRecord } from '@/object-record/hooks/useDestroyOneRecord';
 import { useRemoveSelectedRecordsFromRecordBoard } from '@/object-record/record-board/hooks/useRemoveSelectedRecordsFromRecordBoard';
 import { useRecordIndexIdFromCurrentContextStore } from '@/object-record/record-index/hooks/useRecordIndexIdFromCurrentContextStore';
@@ -12,7 +12,7 @@ export const DestroySingleRecordCommand = () => {
   const { recordIndexId, objectMetadataItem } =
     useRecordIndexIdFromCurrentContextStore();
 
-  const recordId = useSelectedRecordIdOrThrow();
+  const recordId = useSelectedRecordIdOrNull();
 
   const navigateApp = useNavigateApp();
 
@@ -26,6 +26,10 @@ export const DestroySingleRecordCommand = () => {
   });
 
   const handleDeleteClick = async () => {
+    if (!recordId) {
+      return;
+    }
+
     removeSelectedRecordsFromRecordBoard();
     resetTableRowSelection();
 
@@ -34,6 +38,10 @@ export const DestroySingleRecordCommand = () => {
       objectNamePlural: objectMetadataItem.namePlural,
     });
   };
+
+  if (!recordId) {
+    return null;
+  }
 
   return (
     <CommandModal
