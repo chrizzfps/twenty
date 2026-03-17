@@ -87,6 +87,11 @@ export class ExceptionHandlerSentryDriver
 
         if (exception instanceof PostgresException) {
           scope.setTag('postgresSqlErrorCode', exception.code);
+
+          if (isDefined(exception.originalMessage)) {
+            scope.setExtra('originalPostgresMessage', exception.originalMessage);
+          }
+
           const fingerPrint = [exception.code];
           const genericOperationName = getGenericOperationName(
             options?.operation?.name,
@@ -96,7 +101,7 @@ export class ExceptionHandlerSentryDriver
             fingerPrint.push(genericOperationName);
           }
           scope.setFingerprint(fingerPrint);
-          exception.name = exception.message;
+          exception.name = exception.originalMessage ?? exception.message;
         }
 
         if (exception instanceof MessageImportDriverException) {
