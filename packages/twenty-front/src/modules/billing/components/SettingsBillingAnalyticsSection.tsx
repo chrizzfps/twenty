@@ -1,7 +1,7 @@
 import { BillingChartTooltip } from '@/billing/components/BillingChartTooltip';
 import {
-  BillingLineChartContainer,
-  BillingPieChartContainer,
+  StyledBillingLineChartContainer,
+  StyledBillingPieChartContainer,
 } from '@/billing/components/BillingChartContainers';
 import { SettingsBillingLabelValueItem } from '@/billing/components/internal/SettingsBillingLabelValueItem';
 import { SubscriptionInfoContainer } from '@/billing/components/SubscriptionInfoContainer';
@@ -11,7 +11,7 @@ import {
   getExecutionTypeLabel,
   getPeriodDates,
   getPeriodOptions,
-} from '@/billing/utils/billing-analytics.utils';
+} from '@/billing/utils/billingAnalyticsUtils';
 import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
 import { CHART_MOTION_CONFIG } from '@/page-layout/widgets/graph/constants/ChartMotionConfig';
 import { useLineChartTheme } from '@/page-layout/widgets/graph/graph-widget-line-chart/hooks/useLineChartTheme';
@@ -209,7 +209,7 @@ export const SettingsBillingAnalyticsSection = () => {
             }
           />
           <SubscriptionInfoContainer>
-            <BillingPieChartContainer>
+            <StyledBillingPieChartContainer>
               <ResponsivePie
                 data={pieData}
                 margin={{ top: 20, right: 80, bottom: 20, left: 80 }}
@@ -233,7 +233,7 @@ export const SettingsBillingAnalyticsSection = () => {
                   />
                 )}
               />
-            </BillingPieChartContainer>
+            </StyledBillingPieChartContainer>
           </SubscriptionInfoContainer>
         </Section>
       )}
@@ -255,7 +255,7 @@ export const SettingsBillingAnalyticsSection = () => {
             }
           />
           <SubscriptionInfoContainer>
-            <BillingLineChartContainer>
+            <StyledBillingLineChartContainer>
               <ResponsiveLine
                 data={lineData}
                 margin={{ top: 10, right: 20, bottom: 30, left: 50 }}
@@ -307,7 +307,7 @@ export const SettingsBillingAnalyticsSection = () => {
                   />
                 )}
               />
-            </BillingLineChartContainer>
+            </StyledBillingLineChartContainer>
           </SubscriptionInfoContainer>
         </Section>
       )}
