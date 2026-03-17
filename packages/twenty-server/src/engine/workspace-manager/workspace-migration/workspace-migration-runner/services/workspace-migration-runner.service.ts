@@ -135,12 +135,12 @@ export class WorkspaceMigrationRunnerService {
     if (invalidationFailures.length > 0) {
       invalidationFailures.forEach((err) =>
         this.logger.error(
-          `Failed to invalidate a legacy cache ${err.reason}`,
+          `Failed to invalidate a legacy cache for workspace ${workspaceId} (keys: ${allFlatEntityMapsKeys.join(', ')}): ${err.reason}`,
           'Runner',
         ),
       );
       throw new Error(
-        `Failed to invalidate ${invalidationFailures.length} cache operations`,
+        `Failed to invalidate ${invalidationFailures.length} cache operations for workspace ${workspaceId}`,
       );
     }
 
