@@ -347,6 +347,7 @@ describe('AIBillingService', () => {
               resource_id: 'agent-id-123',
               execution_context_1: 'gpt-4o',
             },
+            userWorkspaceId: null,
           },
         ],
         'workspace-1',
