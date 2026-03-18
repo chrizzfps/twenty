@@ -13,7 +13,7 @@
 #   1. Fetches all open issues with no labels
 #   2. For each, calls Claude to classify it
 #   3. Sets the issue type via GraphQL
-#   4. Applies scope/priority/size labels
+#   4. Applies scope labels
 #   5. Leaves a triage comment
 
 set -euo pipefail
@@ -87,8 +87,6 @@ $ALL_ISSUES
 {
   \"issue_type\": \"<Bug|Feature|Task|null>\",
   \"scope\": \"<front|backend|back+front|infra|self-host|null>\",
-  \"priority\": \"<critical|high|medium|low>\",
-  \"size\": \"<short|medium|long>\",
   \"is_support_question\": <true|false>,
   \"needs_reproduction\": <true|false>,
   \"good_first_issue\": <true|false>,
@@ -120,7 +118,7 @@ else:
     continue
   fi
 
-  echo "  Classification: $(echo "$JSON" | jq -c '{type: .issue_type, scope: .scope, prio: .priority}')"
+  echo "  Classification: $(echo "$JSON" | jq -c '{type: .issue_type, scope: .scope}')"
 
   if [ "$DRY_RUN" = true ]; then
     echo "  [DRY RUN] Would apply: $JSON"
@@ -151,15 +149,11 @@ else:
   # Build and apply labels
   LABELS=()
   SCOPE=$(echo "$JSON" | jq -r '.scope // empty')
-  PRIO=$(echo "$JSON" | jq -r '.priority // empty')
-  SIZE=$(echo "$JSON" | jq -r '.size // empty')
   IS_SUPPORT=$(echo "$JSON" | jq -r '.is_support_question // false')
   NEEDS_REPRO=$(echo "$JSON" | jq -r '.needs_reproduction // false')
   GOOD_FIRST=$(echo "$JSON" | jq -r '.good_first_issue // false')
 
   [ -n "$SCOPE" ] && [ "$SCOPE" != "null" ] && LABELS+=("scope: $SCOPE")
-  [ -n "$PRIO" ] && [ "$PRIO" != "null" ] && LABELS+=("prio: $PRIO")
-  [ -n "$SIZE" ] && [ "$SIZE" != "null" ] && LABELS+=("size: $SIZE")
   [ "$IS_SUPPORT" = "true" ] && LABELS+=("support")
   [ "$NEEDS_REPRO" = "true" ] && LABELS+=("needs: reproduction")
   [ "$GOOD_FIRST" = "true" ] && LABELS+=("good first issue")

@@ -28,6 +28,9 @@ DELETE_LABELS=(
   "type: documentation"
   "type: marketing"
   "type: SELF_HOST"
+  "💎 Bounty"
+  "🙋 Bounty claim"
+  "stale"
 )
 
 for label in "${DELETE_LABELS[@]}"; do

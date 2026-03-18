@@ -16,29 +16,28 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            scripts
-          sparse-checkout-cone-mode: false
 
       - name: Fetch repo context for triage
         id: context
         uses: actions/github-script@v7
         with:
           script: |
-            // Fetch recent open issues for duplicate detection
+            // Fetch recent open issues for duplicate detection (titles + bodies for better matching)
             const issues = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'open',
-              per_page: 100,
+              per_page: 50,
               sort: 'created',
               direction: 'desc',
             });
 
             const issueList = issues.data
               .filter(i => i.number !== context.payload.issue.number && !i.pull_request)
-              .map(i => `#${i.number}: ${i.title}`)
+              .map(i => {
+                const body = (i.body || '').substring(0, 200).replace(/\n/g, ' ');
+                return `#${i.number}: ${i.title} — ${body}`;
+              })
               .join('\n');
 
             core.setOutput('open_issues', issueList);
@@ -73,56 +72,64 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           direct_prompt: |
-            You are an issue triager for Twenty, an open-source CRM (https://github.com/twentyhq/twenty).
+            You are a knowledgeable first responder for Twenty, an open-source CRM.
+            You have READ-ONLY access to the full codebase. Your job is to understand the issue,
+            search the code for relevant context, and provide a genuinely helpful response.
 
-            Analyze the following GitHub issue and classify it. Respond with ONLY a valid JSON object, no markdown, no explanation.
+            ## Issue to analyze
 
             Issue #${{ github.event.issue.number }}
             Title: ${{ github.event.issue.title }}
             Body:
             ${{ github.event.issue.body }}
 
-            Available issue types in this repo:
-            ${{ steps.context.outputs.issue_types }}
+            Available issue types: ${{ steps.context.outputs.issue_types }}
 
-            Recent open issues (check for duplicates):
+            Recent open issues (for duplicate check):
             ${{ steps.context.outputs.open_issues }}
 
-            Respond with this exact JSON structure:
-            {
-              "issue_type": "<one of: Bug, Feature, Task, or null if unclear. Must match an available type name exactly>",
-              "is_confirmed_bug": <true if clearly a bug with reproduction info, false if just a support question or unclear>,
-              "is_support_question": <true if the author is asking for help, troubleshooting, or how to do something>,
-              "is_feature_suggestion": <true if this is a feature request or product suggestion>,
-              "scope": "<one of: front, backend, back+front, infra, self-host, or null if unclear>",
-              "priority": "<one of: critical, high, medium, low>",
-              "size": "<one of: short, medium, long>",
-              "good_first_issue": <true or false>,
-              "needs_reproduction": <true or false - set true for bugs that lack clear steps to reproduce>,
-              "duplicate_of": <issue number (integer) if this appears to be a duplicate, or null>,
-              "summary": "<one sentence summary of what this issue is about>"
-            }
+            ## Your task
 
-            Classification guidelines:
-            - issue_type "Bug": something is broken or not working as expected (confirmed with evidence)
-            - issue_type "Feature": a new capability, enhancement, or product suggestion
-            - issue_type "Task": refactoring, cleanup, tech debt, documentation, or internal work
-            - is_confirmed_bug: true ONLY if the reporter provides clear evidence (error messages, screenshots, steps to reproduce). If someone says "X doesn't work" with no details, set false and is_support_question to true
-            - is_support_question: true if the issue is really asking "how do I...", "does Twenty support...", "I'm having trouble with...", or troubleshooting a self-hosted setup
-            - is_feature_suggestion: true if proposing new functionality or UX improvements
-            - scope "self-host": issues specific to self-hosted deployments (Docker, env config, migration problems)
-            - scope "front": UI-only issues (React, components, styling)
-            - scope "backend": server-only issues (API, database, GraphQL, workers)
-            - scope "back+front": requires changes in both frontend and backend
-            - scope "infra": CI/CD, deployment, infrastructure
-            - priority "critical": data loss, security vulnerability, or complete feature breakage affecting all users
-            - priority "high": significant functionality broken, blocking multiple users
-            - priority "medium": moderate impact, workaround exists
-            - priority "low": minor issue, cosmetic, or nice-to-have
-            - good_first_issue: true only if the fix is straightforward, well-scoped, and good for newcomers
-            - needs_reproduction: true for bugs that lack clear steps to reproduce
-            - duplicate_of: set ONLY if you are confident the issue is clearly about the same thing as an existing open issue. Do not set for merely related issues.
-          claude_args: '--max-turns 1 --model haiku'
+            1. SEARCH the codebase for relevant code:
+               - For bug reports: grep for error messages, component names, API endpoints, or function names mentioned
+               - For questions: search for the feature or concept they're asking about
+               - For features: check if related functionality already exists
+               - Read the relevant source files to understand the current implementation
+
+            2. CLASSIFY the issue:
+               - issue_type: "Bug" (broken behavior with evidence), "Feature" (new capability/enhancement), "Task" (refactoring/docs/internal), or null
+               - scope: "front" (React/UI), "backend" (NestJS/API/DB), "back+front" (both), "infra" (CI/CD/deploy), "self-host" (Docker/self-hosted), or null
+               - is_support_question: true if asking "how do I..." or troubleshooting
+               - is_feature_suggestion: true if proposing new functionality
+               - needs_reproduction: true for bugs that lack clear reproduction steps
+               - good_first_issue: true only if the fix is clearly straightforward and well-scoped
+               - duplicate_of: issue number ONLY if clearly the same problem (not just related)
+
+            3. WRITE a helpful comment:
+               - If you found relevant code, share the file path(s) and explain what you see
+               - For bugs: try to identify the relevant code area or possible root cause
+               - For questions: try to answer from what you find in the codebase
+               - For features: mention existing related functionality and where it lives
+               - Be concise but substantive — a few sentences with code pointers beats a wall of text
+               - If you genuinely can't find anything relevant, keep it brief
+               - DO NOT suggest priority, timeline, or size estimates — that's for maintainers
+               - DO NOT promise fixes or assign responsibility
+
+            ## Output format
+
+            After your research, output ONLY a JSON object with no markdown fencing:
+
+            {
+              "issue_type": "<Bug|Feature|Task|null>",
+              "scope": "<front|backend|back+front|infra|self-host|null>",
+              "is_support_question": <boolean>,
+              "is_feature_suggestion": <boolean>,
+              "good_first_issue": <boolean>,
+              "needs_reproduction": <boolean>,
+              "duplicate_of": <number or null>,
+              "comment": "<your helpful markdown response>"
+            }
+          claude_args: '--max-turns 10 --model sonnet --allowedTools "Glob,Grep,Read"'
 
       - name: Apply triage results
         if: steps.triage.outputs.result
@@ -153,7 +160,6 @@ jobs:
                 const issueTypes = JSON.parse(`${{ steps.context.outputs.issue_types }}`);
                 const matchedType = issueTypes.find(t => t.name === triage.issue_type);
                 if (matchedType) {
-                  // Get issue node ID
                   const issueData = await github.graphql(`
                     {
                       repository(owner: "${owner}", name: "${repo}") {
@@ -184,22 +190,12 @@ jobs:
               }
             }
 
-            // 2. Build label list (no more type: labels — using issue types instead)
+            // 2. Build label list
             const labels = [];
 
             const validScopes = ['front', 'backend', 'back+front', 'infra', 'self-host'];
             if (triage.scope && validScopes.includes(triage.scope)) {
               labels.push(triage.scope === 'self-host' ? 'scope: self-host' : `scope: ${triage.scope}`);
-            }
-
-            const validPriorities = ['critical', 'high', 'medium', 'low'];
-            if (triage.priority && validPriorities.includes(triage.priority)) {
-              labels.push(`prio: ${triage.priority}`);
-            }
-
-            const validSizes = ['short', 'medium', 'long'];
-            if (triage.size && validSizes.includes(triage.size)) {
-              labels.push(`size: ${triage.size}`);
             }
 
             if (triage.good_first_issue === true) {
@@ -225,7 +221,6 @@ jobs:
                 'needs: reproduction': 'fbca04',
                 'support': '0075ca',
                 'scope: self-host': 'bfd4f2',
-                'size: medium': 'c2e0c6',
               };
 
               for (const label of labels) {
@@ -250,40 +245,32 @@ jobs:
               console.log(`Applied labels: ${labels.join(', ')}`);
             }
 
-            // 4. Build triage comment
+            // 4. Build and post comment
             const commentParts = [];
 
-            if (triage.summary) {
-              commentParts.push(`**Auto-triage:** ${triage.summary}`);
+            // Claude's substantive response (the main value)
+            if (triage.comment) {
+              commentParts.push(triage.comment);
             }
 
             // Flag duplicates
             if (triage.duplicate_of && Number.isInteger(triage.duplicate_of)) {
-              commentParts.push(`\n> **Possible duplicate** of #${triage.duplicate_of} — please check if this is the same issue before proceeding.`);
+              commentParts.push(`\n> **Possible duplicate** of #${triage.duplicate_of} — please check if this is the same issue.`);
             }
 
             // Guide support questions
             if (triage.is_support_question === true) {
-              commentParts.push(`\nThis looks like a support question. You may get faster help on our [Discord](https://discord.gg/cx5n7CSns2) or [GitHub Discussions](https://github.com/twentyhq/twenty/discussions).`);
-              commentParts.push(`If this is actually a confirmed bug, please update the issue with steps to reproduce and we'll re-triage it.`);
+              commentParts.push(`\n---\nFor faster help, you can also try our [Discord](https://discord.gg/cx5n7CSns2) or [GitHub Discussions](https://github.com/twentyhq/twenty/discussions). If this is a confirmed bug, please update the issue with reproduction steps and we'll re-triage.`);
             }
 
             // Guide feature suggestions
             if (triage.is_feature_suggestion === true && triage.issue_type !== 'Bug') {
-              commentParts.push(`\nThis looks like a feature suggestion. Feature requests are typically discussed in [GitHub Discussions](https://github.com/twentyhq/twenty/discussions) before being converted to tracked issues. A maintainer may move this to discussions.`);
+              commentParts.push(`\n---\nFeature requests are often discussed in [GitHub Discussions](https://github.com/twentyhq/twenty/discussions) before becoming tracked issues. A maintainer may move this there.`);
             }
 
             // Reproduction needed
             if (triage.needs_reproduction === true && !triage.is_support_question) {
-              commentParts.push(`\nWe need more information to reproduce this issue. Please provide:\n- Steps to reproduce\n- Expected vs actual behavior\n- Environment details (self-hosted/cloud, version, browser)`);
-            }
-
-            // Applied metadata summary
-            const metaParts = [];
-            if (triage.issue_type) metaParts.push(`Type: **${triage.issue_type}**`);
-            if (labels.length > 0) metaParts.push(`Labels: ${labels.map(l => '`' + l + '`').join(', ')}`);
-            if (metaParts.length > 0) {
-              commentParts.push(`\n${metaParts.join(' · ')}`);
+              commentParts.push(`\n---\nTo help us investigate, please provide:\n- Steps to reproduce\n- Expected vs actual behavior\n- Environment details (self-hosted/cloud, version, browser)`);
             }
 
             if (commentParts.length > 0) {
