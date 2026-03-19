@@ -3,7 +3,10 @@ import { styled } from '@linaria/react';
 import { IconMinus, IconPlus } from 'twenty-ui/display';
 import { IconButton } from 'twenty-ui/input';
 import { themeCssVariables } from 'twenty-ui/theme-constants';
-import { castAsNumberOrNull } from '~/utils/cast-as-number-or-null';
+import {
+  canBeCastAsNumberOrNull,
+  castAsNumberOrNull,
+} from '~/utils/cast-as-number-or-null';
 
 type SettingsCounterProps = {
   value: number;
@@ -57,6 +60,10 @@ export const SettingsCounter = ({
   };
 
   const handleTextInputChange = (value: string) => {
+    if (!canBeCastAsNumberOrNull(value)) {
+      return;
+    }
+
     const castedNumber = castAsNumberOrNull(value);
     if (castedNumber === null) {
       onChange(minValue);
