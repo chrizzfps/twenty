@@ -104,6 +104,7 @@ export const fromCreateObjectInputToFlatObjectMetadataAndFlatFieldMetadatasToCre
     const {
       standardSourceFlatFieldMetadatas,
       standardTargetFlatFieldMetadatas,
+      standardRelationIndexMetadatas,
     } = buildDefaultRelationFlatFieldMetadatasForCustomObject({
       existingFlatObjectMetadataMaps,
       sourceFlatObjectMetadata: universalFlatObjectMetadataToCreate,
@@ -124,9 +125,10 @@ export const fromCreateObjectInputToFlatObjectMetadataAndFlatFieldMetadatasToCre
 
     return {
       flatObjectMetadataToCreate: universalFlatObjectMetadataToCreate,
-      flatIndexMetadataToCreate: Object.values(
-        defaultIndexesForCustomObject.indexes,
-      ),
+      flatIndexMetadataToCreate: [
+        ...Object.values(defaultIndexesForCustomObject.indexes),
+        ...standardRelationIndexMetadatas,
+      ],
       relationTargetFlatFieldMetadataToCreate: standardTargetFlatFieldMetadatas,
       flatFieldMetadataToCreateOnObject: objectFlatFieldMetadatas,
     };
