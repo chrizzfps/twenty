@@ -5,7 +5,12 @@ import { msg } from '@lingui/core/macro';
 import { TWENTY_ICONS_BASE_URL } from 'twenty-shared/constants';
 import { isDefined } from 'twenty-shared/utils';
 import { WorkspaceActivationStatus } from 'twenty-shared/workspace';
-import { Repository, type DataSource, type QueryRunner } from 'typeorm';
+import {
+  QueryFailedError,
+  Repository,
+  type DataSource,
+  type QueryRunner,
+} from 'typeorm';
 import { v4 } from 'uuid';
 
 import { USER_SIGNUP_EVENT_NAME } from 'src/engine/api/graphql/workspace-query-runner/constants/user-signup-event-name.constants';
@@ -269,10 +274,27 @@ export class SignInUpService {
         newUserWithPicture: PartialUserWithPicture;
       };
 
-      const user = await this.saveNewUser(userData.newUserWithPicture, {
-        canAccessFullAdminPanel: false,
-        canImpersonate: false,
-      });
+      let user;
+
+      try {
+        user = await this.saveNewUser(userData.newUserWithPicture, {
+          canAccessFullAdminPanel: false,
+          canImpersonate: false,
+        });
+      } catch (error) {
+        if (
+          error instanceof QueryFailedError &&
+          (error as QueryFailedError & { code?: string }).code === '23505' &&
+          error.message.includes('UQ_USER_EMAIL')
+        ) {
+          throw new AuthException(
+            'User already exists',
+            AuthExceptionCode.USER_ALREADY_EXISTS,
+            { userFriendlyMessage: msg`User already exists` },
+          );
+        }
+        throw error;
+      }
 
       await this.activateOnboardingForUser({
         user,
@@ -572,6 +594,19 @@ export class SignInUpService {
       return { user, workspace };
     } catch (error) {
       await queryRunner.rollbackTransaction();
+
+      if (
+        error instanceof QueryFailedError &&
+        (error as QueryFailedError & { code?: string }).code === '23505' &&
+        error.message.includes('UQ_USER_EMAIL')
+      ) {
+        throw new AuthException(
+          'User already exists',
+          AuthExceptionCode.USER_ALREADY_EXISTS,
+          { userFriendlyMessage: msg`User already exists` },
+        );
+      }
+
       throw error;
     } finally {
       await queryRunner.release();
