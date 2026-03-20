@@ -114,7 +114,8 @@ describe('useIncrementalUpdateManyRecords', () => {
       },
     });
 
-    const { refetchFindManyRecords } = mockUseRefetchFindManyRecords.mock.results[0].value;
+    const { refetchFindManyRecords } =
+      mockUseRefetchFindManyRecords.mock.results[0].value;
     expect(refetchFindManyRecords).toHaveBeenCalled();
   });
 
