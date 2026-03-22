@@ -85,26 +85,24 @@ export const SettingsUpdateDataModelObjectAboutForm = ({
 
     const updatedObject = updateResult.response;
 
-    if (formValues.isLabelSyncedWithName !== isLabelSyncedWithName) {
-      formConfig.reset({
-        description,
-        icon: icon ?? undefined,
-        isLabelSyncedWithName: formValues.isLabelSyncedWithName,
-        labelPlural: updatedObject?.data?.updateOneObject.labelPlural,
-        labelSingular: updatedObject?.data?.updateOneObject.labelSingular,
-        namePlural: updatedObject?.data?.updateOneObject.namePlural,
-        nameSingular: updatedObject?.data?.updateOneObject.nameSingular,
-      });
-    } else {
-      formConfig.reset(undefined, { keepValues: true });
-    }
+    const updatedObjectData = updatedObject?.data?.updateOneObject;
+
+    formConfig.reset({
+      description: updatedObjectData?.description ?? description,
+      icon: updatedObjectData?.icon ?? icon ?? undefined,
+      isLabelSyncedWithName:
+        formValues.isLabelSyncedWithName ?? isLabelSyncedWithName,
+      labelPlural: updatedObjectData?.labelPlural ?? labelPlural,
+      labelSingular: updatedObjectData?.labelSingular ?? labelSingular,
+      namePlural: updatedObjectData?.namePlural ?? namePlural,
+      nameSingular: updatedObjectData?.nameSingular ?? nameSingular,
+    });
 
     navigate(SettingsPath.ObjectDetail, {
       objectNamePlural: objectNamePluralForRedirection,
     });
 
-    const updatedObjectNamePlural =
-      updatedObject?.data?.updateOneObject.namePlural;
+    const updatedObjectNamePlural = updatedObjectData?.namePlural;
 
     if (!isDefined(updatedObjectNamePlural)) {
       return;
