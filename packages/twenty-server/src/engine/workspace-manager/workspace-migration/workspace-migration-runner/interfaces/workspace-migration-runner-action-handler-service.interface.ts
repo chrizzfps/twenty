@@ -313,14 +313,16 @@ export abstract class BaseWorkspaceMigrationRunnerActionHandlerService<
     label: string;
     method: () => Promise<void>;
   }): Promise<void> {
+    const uniqueLabel = `${this.actionType}_${this.metadataName} ${label} #${Math.random().toString(36).slice(2, 8)}`;
+
     this.logger.time(
       'BaseWorkspaceMigrationRunnerActionHandlerService',
-      `${this.actionType}_${this.metadataName} ${label}`,
+      uniqueLabel,
     );
     await method();
     this.logger.timeEnd(
       'BaseWorkspaceMigrationRunnerActionHandlerService',
-      `${this.actionType}_${this.metadataName} ${label}`,
+      uniqueLabel,
     );
   }
 }

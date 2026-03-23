@@ -108,13 +108,15 @@ export class WorkspaceMigrationRunnerService {
   async invalidateCache({
     allFlatEntityMapsKeys,
     workspaceId,
+    runId,
   }: {
     allFlatEntityMapsKeys: (keyof AllFlatEntityMaps)[];
     workspaceId: string;
+    runId: string;
   }): Promise<void> {
     this.logger.time(
       'Runner',
-      `Cache invalidation ${allFlatEntityMapsKeys.join()}`,
+      `Cache invalidation ${allFlatEntityMapsKeys.join()} ${runId}`,
     );
 
     await this.flatEntityMapsCacheService.invalidateFlatEntityMaps({
@@ -147,7 +149,7 @@ export class WorkspaceMigrationRunnerService {
 
     this.logger.timeEnd(
       'Runner',
-      `Cache invalidation ${allFlatEntityMapsKeys.join()}`,
+      `Cache invalidation ${allFlatEntityMapsKeys.join()} ${runId}`,
     );
   }
 
@@ -163,8 +165,10 @@ export class WorkspaceMigrationRunnerService {
     allFlatEntityMaps: AllFlatEntityMaps;
     metadataEvents: MetadataEvent[];
   }> => {
-    this.logger.time('Runner', 'Total execution');
-    this.logger.time('Runner', 'Initial cache retrieval');
+    const runId = `#${Math.random().toString(36).slice(2, 8)}`;
+
+    this.logger.time('Runner', `Total execution ${runId}`);
+    this.logger.time('Runner', `Initial cache retrieval ${runId}`);
 
     const queryRunner =
       externalQueryRunner ?? this.coreDataSource.createQueryRunner();
@@ -195,7 +199,7 @@ export class WorkspaceMigrationRunnerService {
         flatMapsKeys: allFlatEntityMapsKeys,
       });
 
-    this.logger.timeEnd('Runner', 'Initial cache retrieval');
+    this.logger.timeEnd('Runner', `Initial cache retrieval ${runId}`);
 
     const { flatApplicationMaps } =
       await this.workspaceCacheService.getOrRecompute(workspaceId, [
@@ -217,7 +221,7 @@ export class WorkspaceMigrationRunnerService {
       });
     }
 
-    this.logger.time('Runner', 'Transaction execution');
+    this.logger.time('Runner', `Transaction execution ${runId}`);
 
     if (!isTransactionAlreadyActive) {
       await queryRunner.connect();
@@ -254,7 +258,7 @@ export class WorkspaceMigrationRunnerService {
         await queryRunner.commitTransaction();
       }
 
-      this.logger.timeEnd('Runner', 'Transaction execution');
+      this.logger.timeEnd('Runner', `Transaction execution ${runId}`);
 
       await this.invalidateCache({
         allFlatEntityMapsKeys,
