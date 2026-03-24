@@ -50,8 +50,7 @@ export class MessageChannelDataAccessService {
       };
 
       if ('accountOwnerId' in connectedAccountWhere) {
-        const { accountOwnerId, ...restConnectedAccount } =
-          connectedAccountWhere;
+        const { accountOwnerId } = connectedAccountWhere;
 
         const resolvedConnectedAccounts =
           await this.connectedAccountDataAccessService.find(workspaceId, {
@@ -63,13 +62,9 @@ export class MessageChannelDataAccessService {
         } else {
           coreWhere.connectedAccountId = '00000000-0000-0000-0000-000000000000';
         }
-
-        if (Object.keys(restConnectedAccount).length > 0) {
-          coreWhere.connectedAccount = restConnectedAccount;
-        } else {
-          delete coreWhere.connectedAccount;
-        }
       }
+
+      delete coreWhere.connectedAccount;
     }
 
     return coreWhere;
@@ -157,11 +152,13 @@ export class MessageChannelDataAccessService {
     where?: FindOptionsWhere<MessageChannelWorkspaceEntity>,
   ): Promise<MessageChannelWorkspaceEntity[]> {
     if (await this.isMigrated(workspaceId)) {
+      const coreWhere = await this.toCoreWhere(
+        workspaceId,
+        (where ?? {}) as Record<string, unknown>,
+      );
+
       return this.coreRepository.find({
-        where: {
-          ...(where as Record<string, unknown>),
-          workspaceId,
-        } as FindOptionsWhere<MessageChannelEntity>,
+        where: coreWhere as FindOptionsWhere<MessageChannelEntity>,
       }) as unknown as Promise<MessageChannelWorkspaceEntity[]>;
     }
 
@@ -177,41 +174,111 @@ export class MessageChannelDataAccessService {
     if (await this.isMigrated(workspaceId)) {
       const baseWhere = options.where;
 
-      if (!baseWhere) {
-        return this.coreRepository.find({
-          ...options,
-          where: { workspaceId },
-        } as FindManyOptions<MessageChannelEntity>) as unknown as Promise<
-          MessageChannelWorkspaceEntity[]
-        >;
-      }
+      const requestedRelations =
+        (options.relations as string[] | undefined)?.slice() ?? [];
 
-      if (Array.isArray(baseWhere)) {
+      const needsConnectedAccount =
+        requestedRelations.includes('connectedAccount');
+
+      const needsMessageFolders =
+        requestedRelations.includes('messageFolders');
+
+      const coreRelations = requestedRelations.filter(
+        (r) => r !== 'connectedAccount' && r !== 'messageFolders',
+      );
+
+      const coreSelect = options.select
+        ? (({ connectedAccount, ...rest }) => rest)(
+            options.select as Record<string, unknown>,
+          )
+        : undefined;
+
+      const coreOptions = {
+        ...options,
+        relations: coreRelations,
+        ...(coreSelect ? { select: coreSelect } : {}),
+      };
+
+      let results: MessageChannelEntity[];
+
+      if (!baseWhere) {
+        results = await this.coreRepository.find({
+          ...coreOptions,
+          where: { workspaceId },
+        } as FindManyOptions<MessageChannelEntity>);
+      } else if (Array.isArray(baseWhere)) {
         const coreWhereArray = await Promise.all(
           baseWhere.map((whereItem) =>
             this.toCoreWhere(workspaceId, whereItem as Record<string, unknown>),
           ),
         );
 
-        return this.coreRepository.find({
-          ...options,
+        results = await this.coreRepository.find({
+          ...coreOptions,
           where: coreWhereArray,
-        } as FindManyOptions<MessageChannelEntity>) as unknown as Promise<
-          MessageChannelWorkspaceEntity[]
-        >;
+        } as FindManyOptions<MessageChannelEntity>);
+      } else {
+        const coreWhere = await this.toCoreWhere(
+          workspaceId,
+          baseWhere as Record<string, unknown>,
+        );
+
+        results = await this.coreRepository.find({
+          ...coreOptions,
+          where: coreWhere,
+        } as FindManyOptions<MessageChannelEntity>);
       }
 
-      const coreWhere = await this.toCoreWhere(
-        workspaceId,
-        baseWhere as Record<string, unknown>,
-      );
+      const workspaceResults =
+        results as unknown as MessageChannelWorkspaceEntity[];
 
-      return this.coreRepository.find({
-        ...options,
-        where: coreWhere,
-      } as FindManyOptions<MessageChannelEntity>) as unknown as Promise<
-        MessageChannelWorkspaceEntity[]
-      >;
+      if (needsConnectedAccount && workspaceResults.length > 0) {
+        const connectedAccountIds = [
+          ...new Set(
+            workspaceResults.map((result) => result.connectedAccountId),
+          ),
+        ];
+
+        const connectedAccounts = await Promise.all(
+          connectedAccountIds.map((id) =>
+            this.connectedAccountDataAccessService.findOne(workspaceId, {
+              where: { id },
+            }),
+          ),
+        );
+
+        const connectedAccountById = new Map(
+          connectedAccounts
+            .filter((account) => account !== null)
+            .map((account) => [account.id, account]),
+        );
+
+        for (const result of workspaceResults) {
+          const connectedAccount = connectedAccountById.get(
+            result.connectedAccountId,
+          );
+
+          if (connectedAccount) {
+            result.connectedAccount = connectedAccount;
+          }
+        }
+      }
+
+      if (needsMessageFolders && workspaceResults.length > 0) {
+        const workspaceRepository =
+          await this.getWorkspaceRepository(workspaceId);
+
+        for (const result of workspaceResults) {
+          const workspaceChannel = await workspaceRepository.findOne({
+            where: { id: result.id },
+            relations: ['messageFolders'],
+          });
+
+          result.messageFolders = workspaceChannel?.messageFolders ?? [];
+        }
+      }
+
+      return workspaceResults;
     }
 
     const workspaceRepository = await this.getWorkspaceRepository(workspaceId);
