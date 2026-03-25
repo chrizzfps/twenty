@@ -18,7 +18,12 @@ const registrySearchResultSchema = z.object({
         description: z.string().optional(),
         keywords: z.array(z.string()).optional(),
         author: z.object({ name: z.string().optional() }).optional(),
-        links: z.object({ homepage: z.string().optional() }).optional(),
+        links: z
+          .object({
+            homepage: z.string().optional(),
+            npm: z.string().optional(),
+          })
+          .optional(),
       }),
     }),
   ),
@@ -108,7 +113,7 @@ export class MarketplaceService {
             screenshots: [],
             aboutDescription: description ?? '',
             providers: [],
-            websiteUrl: links?.homepage,
+            websiteUrl: links?.homepage ?? links?.npm,
             objects: [],
             fields: [],
             logicFunctions: [],
