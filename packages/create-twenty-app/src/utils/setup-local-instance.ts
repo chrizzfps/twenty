@@ -1,194 +1,106 @@
 import chalk from 'chalk';
-import inquirer from 'inquirer';
 import { execSync } from 'node:child_process';
-import { isDefined } from 'twenty-shared/utils';
 
-const INSTALL_SCRIPT_URL =
-  'https://raw.githubusercontent.com/twentyhq/twenty/main/packages/twenty-docker/scripts/install.sh';
+const LOCAL_PORTS = [2020, 3000];
 
-const SERVER_CONTAINER = 'twenty-server-1';
-const DB_CONTAINER = 'twenty-db-1';
+// Minimal health check — the full implementation lives in twenty-sdk
+const isServerReady = async (port: number): Promise<boolean> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-const isDockerAvailable = (): boolean => {
   try {
-    execSync('docker compose version', { stdio: 'ignore' });
-
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-const isDockerRunning = (): boolean => {
-  try {
-    execSync('docker info', { stdio: 'ignore' });
-
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-const isTwentyServerRunning = async (): Promise<boolean> => {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-    const response = await fetch('http://localhost:3000/healthz', {
+    const response = await fetch(`http://localhost:${port}/healthz`, {
       signal: controller.signal,
     });
-
-    clearTimeout(timeoutId);
 
     const body = await response.json();
 
     return body.status === 'ok';
   } catch {
     return false;
+  } finally {
+    clearTimeout(timeoutId);
   }
 };
 
-const getActiveWorkspaceId = (): string | null => {
-  try {
-    const result = execSync(
-      `docker exec ${DB_CONTAINER} psql -U postgres -d default -t -c "SELECT id FROM core.workspace WHERE \\"activationStatus\\" = 'ACTIVE' LIMIT 1"`,
-      { encoding: 'utf-8' },
-    ).trim();
+const detectRunningServer = async (
+  preferredPort?: number,
+): Promise<number | null> => {
+  const ports = preferredPort ? [preferredPort] : LOCAL_PORTS;
 
-    return result || null;
-  } catch {
-    return null;
-  }
-};
-
-const generateApiKeyToken = (workspaceId: string): string | null => {
-  try {
-    const output = execSync(
-      `docker exec -e NODE_ENV=development ${SERVER_CONTAINER} yarn command:prod workspace:generate-api-key -w ${workspaceId}`,
-      { encoding: 'utf-8' },
-    );
-
-    const TOKEN_PREFIX = 'TOKEN:';
-    const tokenLine = output
-      .trim()
-      .split('\n')
-      .find((line) => line.includes(TOKEN_PREFIX));
-
-    if (!tokenLine) {
-      return null;
+  for (const port of ports) {
+    if (await isServerReady(port)) {
+      return port;
     }
-
-    const tokenStartIndex =
-      tokenLine.indexOf(TOKEN_PREFIX) + TOKEN_PREFIX.length;
-
-    return tokenLine.slice(tokenStartIndex).trim();
-  } catch {
-    return null;
   }
+
+  return null;
 };
 
 export type LocalInstanceResult = {
   running: boolean;
-  apiKey?: string;
+  serverUrl?: string;
 };
 
-export const setupLocalInstance = async (): Promise<LocalInstanceResult> => {
-  console.log('');
-  console.log(chalk.blue('🐳 Setting up local Twenty instance...'));
+export const setupLocalInstance = async (
+  appDirectory: string,
+  preferredPort?: number,
+): Promise<LocalInstanceResult> => {
+  const detectedPort = await detectRunningServer(preferredPort);
 
-  if (await isTwentyServerRunning()) {
-    console.log(
-      chalk.green('✅ Twenty server is already running on localhost:3000.'),
-    );
-  } else {
-    if (!isDockerAvailable()) {
-      console.log(
-        chalk.yellow(
-          '⚠️  Docker Compose is not installed. Please install Docker first.',
-        ),
-      );
-      console.log(chalk.gray('   See https://docs.docker.com/get-docker/'));
+  if (detectedPort) {
+    const serverUrl = `http://localhost:${detectedPort}`;
 
-      return { running: false };
-    }
+    console.log(chalk.green(`Twenty server detected on ${serverUrl}.\n`));
 
-    if (!isDockerRunning()) {
-      console.log(
-        chalk.yellow(
-          '⚠️  Docker is not running. Please start Docker and try again.',
-        ),
-      );
-
-      return { running: false };
-    }
-
-    try {
-      execSync(`bash <(curl -sL ${INSTALL_SCRIPT_URL})`, {
-        stdio: 'inherit',
-        shell: '/bin/bash',
-      });
-    } catch {
-      console.log(
-        chalk.yellow('⚠️  Local instance setup did not complete successfully.'),
-      );
-
-      return { running: false };
-    }
+    return { running: true, serverUrl };
   }
 
-  console.log('');
+  if (preferredPort) {
+    console.log(
+      chalk.yellow(
+        `No Twenty server found on port ${preferredPort}.\n` +
+          'Start your server and run `yarn twenty remote add --local` manually.\n',
+      ),
+    );
+
+    return { running: false };
+  }
+
+  console.log(chalk.blue('Setting up local Twenty instance...\n'));
+
+  try {
+    execSync('yarn twenty server start', {
+      cwd: appDirectory,
+      stdio: 'inherit',
+    });
+  } catch {
+    return { running: false };
+  }
+
+  console.log(chalk.gray('Waiting for Twenty to be ready...\n'));
+
+  const startTime = Date.now();
+  const timeoutMs = 180 * 1000;
+
+  while (Date.now() - startTime < timeoutMs) {
+    if (await isServerReady(LOCAL_PORTS[0])) {
+      const serverUrl = `http://localhost:${LOCAL_PORTS[0]}`;
+
+      console.log(chalk.green(`Server running on '${serverUrl}'\n`));
+
+      return { running: true, serverUrl };
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+
   console.log(
-    chalk.blue(
-      '👉 Please create your workspace in the browser before continuing.',
+    chalk.yellow(
+      'Twenty server did not become healthy in time.\n',
+      "Check: 'yarn twenty server logs'\n",
     ),
   );
 
-  const { workspaceCreated } = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'workspaceCreated',
-      message: 'Have you finished creating your workspace?',
-      default: true,
-    },
-  ]);
-
-  if (!workspaceCreated) {
-    console.log(
-      chalk.yellow(
-        '⚠️  Skipping API key generation. Run `yarn twenty remote add --local` manually after creating your workspace.',
-      ),
-    );
-
-    return { running: true };
-  }
-
-  console.log(chalk.blue('🔑 Generating API key for your workspace...'));
-
-  const workspaceId = getActiveWorkspaceId();
-
-  if (!isDefined(workspaceId)) {
-    console.log(
-      chalk.yellow(
-        '⚠️  No active workspace found. Make sure you completed the signup flow, then run `yarn twenty auth:login` manually.',
-      ),
-    );
-
-    return { running: true };
-  }
-
-  const apiKey = generateApiKeyToken(workspaceId);
-
-  if (!isDefined(apiKey)) {
-    console.log(
-      chalk.yellow(
-        '⚠️  Could not generate API key. Run `yarn twenty auth:login` manually.',
-      ),
-    );
-
-    return { running: true };
-  }
-
-  console.log(chalk.green('✅ API key generated for your workspace.'));
-
-  return { running: true, apiKey };
+  return { running: false };
 };

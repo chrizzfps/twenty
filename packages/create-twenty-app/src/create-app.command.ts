@@ -1,3 +1,4 @@
+import { basename } from 'path';
 import { copyBaseApplicationProject } from '@/utils/app-template';
 import { convertToLabel } from '@/utils/convert-to-label';
 import { install } from '@/utils/install';
@@ -28,14 +29,15 @@ type CreateAppOptions = {
   displayName?: string;
   description?: string;
   skipLocalInstance?: boolean;
+  port?: number;
 };
 
 export class CreateAppCommand {
   async execute(options: CreateAppOptions = {}): Promise<void> {
-    try {
-      const { appName, appDisplayName, appDirectory, appDescription } =
-        await this.getAppInfos(options);
+    const { appName, appDisplayName, appDirectory, appDescription } =
+      await this.getAppInfos(options);
 
+    try {
       const exampleOptions = this.resolveExampleOptions(
         options.mode ?? 'exhaustive',
       );
@@ -61,29 +63,17 @@ export class CreateAppCommand {
       let localResult: LocalInstanceResult = { running: false };
 
       if (!options.skipLocalInstance) {
-        const { needsLocalInstance } = await inquirer.prompt([
-          {
-            type: 'confirm',
-            name: 'needsLocalInstance',
-            message:
-              'Do you need a local instance of Twenty? Recommended if you not have one already.',
-            default: true,
-          },
-        ]);
+        localResult = await setupLocalInstance(appDirectory, options.port);
 
-        if (needsLocalInstance) {
-          localResult = await setupLocalInstance();
-        }
-
-        if (isDefined(localResult.apiKey)) {
-          this.runAuthLogin(appDirectory, localResult.apiKey);
+        if (localResult.running && localResult.serverUrl) {
+          await this.connectToLocal(appDirectory, localResult.serverUrl);
         }
       }
 
       this.logSuccess(appDirectory, localResult);
     } catch (error) {
       console.error(
-        chalk.red('Initialization failed:'),
+        chalk.red('\nCreate application failed:'),
         error instanceof Error ? error.message : error,
       );
       process.exit(1);
@@ -201,23 +191,25 @@ export class CreateAppCommand {
     appDirectory: string;
     appName: string;
   }): void {
-    console.log(chalk.blue('🎯 Creating Twenty Application'));
-    console.log(chalk.gray(`📁 Directory: ${appDirectory}`));
-    console.log(chalk.gray(`📝 Name: ${appName}`));
-    console.log('');
+    console.log(
+      chalk.blue('\n', 'Creating Twenty Application\n'),
+      chalk.gray(`- Directory: ${appDirectory}\n`, `- Name: ${appName}\n`),
+    );
   }
 
-  private runAuthLogin(appDirectory: string, apiKey: string): void {
+  private async connectToLocal(
+    appDirectory: string,
+    serverUrl: string,
+  ): Promise<void> {
     try {
-      execSync(
-        `yarn twenty auth:login --api-key "${apiKey}" --api-url http://localhost:3000`,
-        { cwd: appDirectory, stdio: 'inherit' },
-      );
-      console.log(chalk.green('✅ Authenticated with local Twenty instance.'));
+      execSync(`yarn twenty remote add ${serverUrl} --as local`, {
+        cwd: appDirectory,
+        stdio: 'inherit',
+      });
     } catch {
       console.log(
         chalk.yellow(
-          '⚠️  Auto auth:login failed. Run `yarn twenty auth:login` manually.',
+          'Authentication skipped. Run `yarn twenty remote add --local` manually.',
         ),
       );
     }
@@ -227,29 +219,21 @@ export class CreateAppCommand {
     appDirectory: string,
     localResult: LocalInstanceResult,
   ): void {
-    const dirName = appDirectory.split('/').reverse()[0] ?? '';
+    const dirName = basename(appDirectory);
 
-    console.log(chalk.green('✅ Application created!'));
-    console.log('');
-    console.log(chalk.blue('Next steps:'));
-    console.log(chalk.gray(`  cd ${dirName}`));
+    console.log(chalk.blue('\nApplication created. Next steps:'));
+    console.log(chalk.gray(`- cd ${dirName}`));
 
-    if (localResult.apiKey) {
-      console.log(chalk.gray('  yarn twenty app:dev     # Start dev mode'));
-    } else if (localResult.running) {
+    if (!localResult.running) {
       console.log(
         chalk.gray(
-          '  yarn twenty remote add --local  # Authenticate with Twenty',
+          '- yarn twenty remote add --local  # Authenticate with Twenty',
         ),
       );
-      console.log(chalk.gray('  yarn twenty app:dev     # Start dev mode'));
-    } else {
-      console.log(
-        chalk.gray(
-          '  yarn twenty remote add --local  # Authenticate with Twenty',
-        ),
-      );
-      console.log(chalk.gray('  yarn twenty app:dev     # Start dev mode'));
     }
+
+    console.log(
+      chalk.gray('- yarn twenty dev                  # Start dev mode'),
+    );
   }
 }

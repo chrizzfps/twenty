@@ -6,10 +6,9 @@ import { IsMinimalMetadataReadyEffect } from '@/metadata-store/effect-components
 
 import { GotoHotkeysEffectsProvider } from '@/app/effect-components/GotoHotkeysEffectsProvider';
 import { PageChangeEffect } from '@/app/effect-components/PageChangeEffect';
+import { SignOutOnOtherTabSignOutEffect } from '@/auth/effect-components/SignOutOnOtherTabSignOutEffect';
 import { AuthProvider } from '@/auth/components/AuthProvider';
 import { CaptchaProvider } from '@/captcha/components/CaptchaProvider';
-import { ChromeExtensionSidecarEffect } from '@/chrome-extension-sidecar/components/ChromeExtensionSidecarEffect';
-import { ChromeExtensionSidecarProvider } from '@/chrome-extension-sidecar/components/ChromeExtensionSidecarProvider';
 import { ClientConfigProvider } from '@/client-config/components/ClientConfigProvider';
 import { ClientConfigProviderEffect } from '@/client-config/components/ClientConfigProviderEffect';
 import { MainContextStoreProvider } from '@/context-store/components/MainContextStoreProvider';
@@ -20,8 +19,7 @@ import { UserMetadataProviderInitialEffect } from '@/metadata-store/effect-compo
 import { ApolloCoreProvider } from '@/object-metadata/components/ApolloCoreProvider';
 import { PreComputedChipGeneratorsProvider } from '@/object-metadata/components/PreComputedChipGeneratorsProvider';
 
-import { HeadlessEngineCommandMountRoot } from '@/command-menu-item/engine-command/components/HeadlessEngineCommandMountRoot';
-import { HeadlessFrontComponentMountRoot } from '@/front-components/components/HeadlessFrontComponentMountRoot';
+import { CommandRunner } from '@/command-menu-item/engine-command/components/CommandRunner';
 import { SSEProvider } from '@/sse-db-event/components/SSEProvider';
 import { SupportChatEffect } from '@/support/components/SupportChatEffect';
 import { DialogManager } from '@/ui/feedback/dialog-manager/components/DialogManager';
@@ -51,45 +49,42 @@ export const AppRouterProviders = () => {
         <WorkspaceProviderEffect />
         <ClientConfigProvider>
           <CaptchaProvider>
-            <ChromeExtensionSidecarEffect />
-            <ChromeExtensionSidecarProvider>
-              <MinimalMetadataGater>
-                <AuthProvider>
-                  <ApolloCoreProvider>
-                    <SSEProvider>
-                      <PreComputedChipGeneratorsProvider>
-                        <UserThemeProviderEffect />
-                        <SnackBarProvider>
-                          <ErrorMessageEffect />
-                          <AgentChatProvider>
-                            <DialogComponentInstanceContext.Provider
-                              value={{ instanceId: 'dialog-manager' }}
-                            >
-                              <DialogManager>
-                                <StrictMode>
-                                  <PromiseRejectionEffect />
-                                  <GotoHotkeysEffectsProvider />
-                                  <PageTitle title={pageTitle} />
-                                  <PageFavicon />
-                                  <Outlet />
-                                  <GlobalFilePreviewModal />
-                                  <CommandMenuConfirmationModalManager />
-                                  <HeadlessFrontComponentMountRoot />
-                                  <HeadlessEngineCommandMountRoot />
-                                </StrictMode>
-                              </DialogManager>
-                            </DialogComponentInstanceContext.Provider>
-                          </AgentChatProvider>
-                        </SnackBarProvider>
-                        <MainContextStoreProvider />
-                        <SupportChatEffect />
-                        <PageChangeEffect />
-                      </PreComputedChipGeneratorsProvider>
-                    </SSEProvider>
-                  </ApolloCoreProvider>
-                </AuthProvider>
-              </MinimalMetadataGater>
-            </ChromeExtensionSidecarProvider>
+            <MinimalMetadataGater>
+              <AuthProvider>
+                <ApolloCoreProvider>
+                  <SSEProvider>
+                    <PreComputedChipGeneratorsProvider>
+                      <UserThemeProviderEffect />
+                      <SnackBarProvider>
+                        <ErrorMessageEffect />
+                        <AgentChatProvider>
+                          <DialogComponentInstanceContext.Provider
+                            value={{ instanceId: 'dialog-manager' }}
+                          >
+                            <DialogManager>
+                              <StrictMode>
+                                <PromiseRejectionEffect />
+                                <GotoHotkeysEffectsProvider />
+                                <PageTitle title={pageTitle} />
+                                <PageFavicon />
+                                <Outlet />
+                                <GlobalFilePreviewModal />
+                                <CommandMenuConfirmationModalManager />
+                                <CommandRunner />
+                              </StrictMode>
+                            </DialogManager>
+                          </DialogComponentInstanceContext.Provider>
+                        </AgentChatProvider>
+                      </SnackBarProvider>
+                      <MainContextStoreProvider />
+                      <SupportChatEffect />
+                      <PageChangeEffect />
+                      <SignOutOnOtherTabSignOutEffect />
+                    </PreComputedChipGeneratorsProvider>
+                  </SSEProvider>
+                </ApolloCoreProvider>
+              </AuthProvider>
+            </MinimalMetadataGater>
           </CaptchaProvider>
         </ClientConfigProvider>
       </BaseThemeProvider>
