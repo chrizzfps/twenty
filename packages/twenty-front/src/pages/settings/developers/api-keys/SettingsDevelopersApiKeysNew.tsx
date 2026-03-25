@@ -75,6 +75,10 @@ export const SettingsDevelopersApiKeysNew = () => {
       formValues.expirationDate ?? 30,
     ).toISOString();
 
+    if (!formValues.name) {
+      return;
+    }
+
     const roleIdToUse = formValues.roleId;
 
     if (!roleIdToUse) {
@@ -137,7 +141,7 @@ export const SettingsDevelopersApiKeysNew = () => {
       ]}
       actionButton={
         <SaveAndCancelButtons
-          isSaveDisabled={!isDefined(canSave)}
+          isSaveDisabled={!canSave}
           onCancel={() => {
             navigateSettings(SettingsPath.ApiWebhooks);
           }}

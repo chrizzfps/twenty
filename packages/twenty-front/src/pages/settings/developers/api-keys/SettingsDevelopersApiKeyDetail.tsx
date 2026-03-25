@@ -233,9 +233,9 @@ export const SettingsDevelopersApiKeyDetail = () => {
 
   return (
     <>
-      {apiKey?.name && (
+      {isDefined(apiKey) && (
         <SubMenuTopBarContainer
-          title={apiKey?.name}
+          title={apiKey.name || t`Unnamed API Key`}
           links={[
             {
               children: t`Workspace`,
@@ -245,7 +245,7 @@ export const SettingsDevelopersApiKeyDetail = () => {
               children: t`APIs & Webhooks`,
               href: getSettingsPath(SettingsPath.ApiWebhooks),
             },
-            { children: apiKey?.name },
+            { children: apiKey.name || t`Unnamed API Key` },
           ]}
         >
           <SettingsPageContainer>
