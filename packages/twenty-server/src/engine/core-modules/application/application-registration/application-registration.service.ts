@@ -300,6 +300,8 @@ export class ApplicationRegistrationService {
         termsUrl: params.termsUrl,
         latestAvailableVersion: params.latestAvailableVersion,
         marketplaceDisplayData: params.marketplaceDisplayData,
+        isListed: params.isListed,
+        isFeatured: params.isFeatured,
       });
 
       return;

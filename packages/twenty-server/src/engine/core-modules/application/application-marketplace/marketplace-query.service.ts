@@ -19,8 +19,6 @@ const MARKETPLACE_CACHE_TTL_MS = 5 * 60 * 1000;
 @Injectable()
 export class MarketplaceQueryService {
   private readonly logger = new Logger(MarketplaceQueryService.name);
-  private cachedApps: MarketplaceAppDTO[] | null = null;
-  private cacheExpiresAt = 0;
   private hasSyncBeenEnqueued = false;
 
   constructor(
@@ -30,10 +28,6 @@ export class MarketplaceQueryService {
   ) {}
 
   async findManyMarketplaceApps(): Promise<MarketplaceAppDTO[]> {
-    if (this.cachedApps !== null && Date.now() < this.cacheExpiresAt) {
-      return this.cachedApps;
-    }
-
     const registrations =
       await this.applicationRegistrationService.findManyListed();
 
@@ -52,12 +46,9 @@ export class MarketplaceQueryService {
       return [];
     }
 
-    this.cachedApps = registrations.map((registration) =>
+    return registrations.map((registration) =>
       this.toMarketplaceAppDTO(registration),
     );
-    this.cacheExpiresAt = Date.now() + MARKETPLACE_CACHE_TTL_MS;
-
-    return this.cachedApps;
   }
 
   async findOneMarketplaceApp(
