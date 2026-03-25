@@ -9,6 +9,7 @@ import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { type Manifest } from 'twenty-shared/application';
 import { SettingsPath } from 'twenty-shared/types';
 import { getSettingsPath, isDefined } from 'twenty-shared/utils';
 import {
@@ -33,9 +34,8 @@ import { useQuery } from '@apollo/client/react';
 import {
   PermissionFlagType,
   FindOneApplicationByUniversalIdentifierDocument,
-  FindOneMarketplaceAppDocument,
+  FindMarketplaceAppDetailDocument,
 } from '~/generated-metadata/graphql';
-import { useMarketplaceApps } from '~/modules/marketplace/hooks/useMarketplaceApps';
 import { SettingsApplicationPermissionsTab } from '~/pages/settings/applications/tabs/SettingsApplicationPermissionsTab';
 import { SettingsAvailableApplicationDetailContentTab } from '~/pages/settings/applications/tabs/SettingsAvailableApplicationDetailContentTab';
 
@@ -266,7 +266,6 @@ export const SettingsAvailableApplicationDetails = () => {
 
   const [selectedScreenshotIndex, setSelectedScreenshotIndex] = useState(0);
 
-  const { data: marketplaceApps } = useMarketplaceApps();
   const { install, isInstalling } = useInstallMarketplaceApp();
   const canInstallMarketplaceApps = useHasPermissionFlag(
     PermissionFlagType.MARKETPLACE_APPS,
@@ -279,43 +278,45 @@ export const SettingsAvailableApplicationDetails = () => {
     },
   );
 
-  const listedApp = marketplaceApps?.find(
-    (app) => app.id === availableApplicationId,
-  );
-
-  const { data: singleAppData } = useQuery(FindOneMarketplaceAppDocument, {
+  const { data: detailData } = useQuery(FindMarketplaceAppDetailDocument, {
     variables: { universalIdentifier: availableApplicationId },
-    skip: isDefined(listedApp) || !availableApplicationId,
+    skip: !availableApplicationId,
   });
 
-  const singleApp = singleAppData?.findOneMarketplaceApp;
+  const detail = detailData?.findMarketplaceAppDetail;
+  const manifest = detail?.manifest as Manifest | undefined;
+  const app = manifest?.application;
 
-  const application = isDefined(listedApp)
-    ? listedApp
-    : isDefined(singleApp)
-      ? {
-          ...singleApp,
-          content: {
-            objects: (singleApp.objects ?? []).length,
-            fields:
-              (singleApp.objects ?? []).reduce(
-                (count, appObject) => count + appObject.fields.length,
-                0,
-              ) + (singleApp.fields ?? []).length,
-            functions: (singleApp.logicFunctions ?? []).length,
-            frontComponents: (singleApp.frontComponents ?? []).length,
-          },
-        }
-      : undefined;
+  const displayName = app?.displayName ?? detail?.name ?? '';
+  const description = app?.description ?? '';
+  const screenshots = app?.screenshots ?? [];
+  const providers = app?.providers ?? [];
+  const aboutDescription = app?.aboutDescription ?? description;
 
-  const isUnlisted = !isDefined(listedApp) && isDefined(application);
+  const contentCounts = {
+    objects: (manifest?.objects ?? []).length,
+    fields:
+      (manifest?.objects ?? []).reduce(
+        (count, obj) => count + (obj.fields?.length ?? 0),
+        0,
+      ) + (manifest?.fields ?? []).length,
+    functions: (manifest?.logicFunctions ?? []).length,
+    frontComponents: (manifest?.frontComponents ?? []).length,
+  };
 
+  const isUnlisted = isDefined(detail) && !detail.isListed;
   const isAlreadyInstalled = isDefined(installedAppData?.findOneApplication);
+  const hasScreenshots = screenshots.length > 0;
+
+  const defaultRole = manifest?.roles?.find(
+    (r) =>
+      r.universalIdentifier === app?.defaultRoleUniversalIdentifier,
+  );
 
   const handleInstall = async () => {
-    if (isDefined(application)) {
+    if (isDefined(detail)) {
       await install({
-        universalIdentifier: application.id,
+        universalIdentifier: detail.universalIdentifier,
       });
     }
   };
@@ -332,15 +333,8 @@ export const SettingsAvailableApplicationDetails = () => {
     { id: 'settings', title: t`Settings`, Icon: IconSettings },
   ];
 
-  const getInitials = (name: string) => {
-    return name.charAt(0).toUpperCase();
-  };
-
-  const hasScreenshots =
-    application?.screenshots && application.screenshots.length > 0;
-
   const renderActiveTabContent = () => {
-    if (!application) return null;
+    if (!detail) return null;
 
     switch (activeTabId) {
       case 'about':
@@ -350,25 +344,23 @@ export const SettingsAvailableApplicationDetails = () => {
               <>
                 <StyledScreenshotsContainer>
                   <StyledScreenshotImage
-                    src={application.screenshots[selectedScreenshotIndex]}
-                    alt={`${application.name} screenshot ${selectedScreenshotIndex + 1}`}
+                    src={screenshots[selectedScreenshotIndex]}
+                    alt={`${displayName} screenshot ${selectedScreenshotIndex + 1}`}
                   />
                 </StyledScreenshotsContainer>
                 <StyledScreenshotThumbnails>
-                  {application.screenshots
-                    .slice(0, 6)
-                    .map((screenshot, index) => (
-                      <StyledThumbnail
-                        key={index}
-                        isSelected={index === selectedScreenshotIndex}
-                        onClick={() => setSelectedScreenshotIndex(index)}
-                      >
-                        <StyledThumbnailImage
-                          src={screenshot}
-                          alt={`${application.name} thumbnail ${index + 1}`}
-                        />
-                      </StyledThumbnail>
-                    ))}
+                  {screenshots.slice(0, 6).map((screenshot, index) => (
+                    <StyledThumbnail
+                      key={index}
+                      isSelected={index === selectedScreenshotIndex}
+                      onClick={() => setSelectedScreenshotIndex(index)}
+                    >
+                      <StyledThumbnailImage
+                        src={screenshot}
+                        alt={`${displayName} thumbnail ${index + 1}`}
+                      />
+                    </StyledThumbnail>
+                  ))}
                 </StyledScreenshotThumbnails>
               </>
             )}
@@ -377,78 +369,90 @@ export const SettingsAvailableApplicationDetails = () => {
               <StyledMainContent>
                 <Section>
                   <StyledSectionTitle>{t`About`}</StyledSectionTitle>
-                  <StyledAboutText>
-                    {application.aboutDescription}
-                  </StyledAboutText>
+                  <StyledAboutText>{aboutDescription}</StyledAboutText>
 
-                  <StyledSectionTitle>{t`Providers`}</StyledSectionTitle>
-                  <StyledProvidersList>
-                    {application.providers.map((provider) => (
-                      <StyledProviderItem key={provider}>
-                        {provider}
-                      </StyledProviderItem>
-                    ))}
-                  </StyledProvidersList>
+                  {providers.length > 0 && (
+                    <>
+                      <StyledSectionTitle>{t`Providers`}</StyledSectionTitle>
+                      <StyledProvidersList>
+                        {providers.map((provider) => (
+                          <StyledProviderItem key={provider}>
+                            {provider}
+                          </StyledProviderItem>
+                        ))}
+                      </StyledProvidersList>
+                    </>
+                  )}
                 </Section>
               </StyledMainContent>
 
               <StyledSidebar>
                 <StyledSidebarSection>
                   <StyledSidebarLabel>{t`Created by`}</StyledSidebarLabel>
-                  <StyledSidebarValue>{application.author}</StyledSidebarValue>
-                </StyledSidebarSection>
-
-                <StyledSidebarSection>
-                  <StyledSidebarLabel>{t`Category`}</StyledSidebarLabel>
                   <StyledSidebarValue>
-                    {application.category}
+                    {app?.author ?? 'Unknown'}
                   </StyledSidebarValue>
                 </StyledSidebarSection>
+
+                {app?.category && (
+                  <StyledSidebarSection>
+                    <StyledSidebarLabel>{t`Category`}</StyledSidebarLabel>
+                    <StyledSidebarValue>{app.category}</StyledSidebarValue>
+                  </StyledSidebarSection>
+                )}
 
                 <StyledSidebarSection>
                   <StyledSidebarLabel>{t`Content`}</StyledSidebarLabel>
                   <StyledContentItem>
                     <IconLayoutGrid size={16} />
-                    {application.content.objects} {t`objects`}
+                    {contentCounts.objects} {t`objects`}
                   </StyledContentItem>
                   <StyledContentItem>
                     <IconColumns size={16} />
-                    {application.content.fields} {t`fields`}
+                    {contentCounts.fields} {t`fields`}
                   </StyledContentItem>
                   <StyledContentItem>
                     <IconApps size={16} />
-                    {application.content.frontComponents} {t`front components`}
+                    {contentCounts.frontComponents} {t`front components`}
                   </StyledContentItem>
                   <StyledContentItem>
                     <IconCommand size={16} />
-                    {application.content.functions} {t`functions`}
+                    {contentCounts.functions} {t`functions`}
                   </StyledContentItem>
                 </StyledSidebarSection>
 
                 <StyledSidebarSection>
                   <StyledSidebarLabel>{t`Latest`}</StyledSidebarLabel>
-                  <StyledSidebarValue>{application.version}</StyledSidebarValue>
+                  <StyledSidebarValue>
+                    {detail.latestAvailableVersion ?? '0.0.0'}
+                  </StyledSidebarValue>
                 </StyledSidebarSection>
 
-                <StyledSidebarSection>
-                  <StyledSidebarLabel>{t`Developers links`}</StyledSidebarLabel>
-                  <StyledLink
-                    href={application.websiteUrl ?? undefined}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <IconWorld size={16} />
-                    {t`Website`}
-                  </StyledLink>
-                  <StyledLink
-                    href={application.termsUrl ?? undefined}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <IconFileText size={16} />
-                    {t`Terms / Privacy`}
-                  </StyledLink>
-                </StyledSidebarSection>
+                {(app?.websiteUrl || app?.termsUrl) && (
+                  <StyledSidebarSection>
+                    <StyledSidebarLabel>{t`Developers links`}</StyledSidebarLabel>
+                    {app?.websiteUrl && (
+                      <StyledLink
+                        href={app.websiteUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <IconWorld size={16} />
+                        {t`Website`}
+                      </StyledLink>
+                    )}
+                    {app?.termsUrl && (
+                      <StyledLink
+                        href={app.termsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <IconFileText size={16} />
+                        {t`Terms / Privacy`}
+                      </StyledLink>
+                    )}
+                  </StyledSidebarSection>
+                )}
               </StyledSidebar>
             </StyledContentContainer>
           </>
@@ -456,14 +460,15 @@ export const SettingsAvailableApplicationDetails = () => {
       case 'content':
         return (
           <SettingsAvailableApplicationDetailContentTab
-            application={application}
+            applicationId={detail.universalIdentifier}
+            content={manifest}
           />
         );
       case 'permissions':
         return (
           <SettingsApplicationPermissionsTab
-            marketplaceAppDefaultRole={application.defaultRole}
-            marketplaceAppObjects={application.objects}
+            marketplaceAppDefaultRole={defaultRole}
+            marketplaceAppObjects={manifest?.objects}
           />
         );
       case 'settings':
@@ -473,7 +478,7 @@ export const SettingsAvailableApplicationDetails = () => {
     }
   };
 
-  if (!application) {
+  if (!detail) {
     return null;
   }
 
@@ -488,7 +493,7 @@ export const SettingsAvailableApplicationDetails = () => {
           children: t`Applications`,
           href: getSettingsPath(SettingsPath.Applications),
         },
-        { children: application.name },
+        { children: displayName },
       ]}
     >
       <SettingsPageContainer>
@@ -501,22 +506,17 @@ export const SettingsAvailableApplicationDetails = () => {
         <StyledHeader>
           <StyledHeaderLeft>
             <StyledLogo>
-              {application.logo ? (
-                <StyledLogoImage
-                  src={application.logo}
-                  alt={application.name}
-                />
+              {app?.logoUrl ? (
+                <StyledLogoImage src={app.logoUrl} alt={displayName} />
               ) : (
                 <StyledLogoPlaceholder>
-                  {getInitials(application.name)}
+                  {displayName.charAt(0).toUpperCase()}
                 </StyledLogoPlaceholder>
               )}
             </StyledLogo>
             <StyledHeaderInfo>
-              <StyledAppName>{application.name}</StyledAppName>
-              <StyledAppDescription>
-                {application.description}
-              </StyledAppDescription>
+              <StyledAppName>{displayName}</StyledAppName>
+              <StyledAppDescription>{description}</StyledAppDescription>
             </StyledHeaderInfo>
           </StyledHeaderLeft>
           {canInstallMarketplaceApps && (

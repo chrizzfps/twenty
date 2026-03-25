@@ -272,11 +272,6 @@ export class ApplicationDevelopmentResolver {
           id: applicationRegistrationId,
           update: {
             name: manifest.application.displayName,
-            description: manifest.application.description,
-            logoUrl: manifest.application.logoUrl,
-            author: manifest.application.author,
-            websiteUrl: manifest.application.websiteUrl,
-            termsUrl: manifest.application.termsUrl,
           },
         },
         workspaceId,

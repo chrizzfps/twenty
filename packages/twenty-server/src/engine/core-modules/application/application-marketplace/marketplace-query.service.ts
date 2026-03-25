@@ -10,11 +10,10 @@ import {
 import { ApplicationRegistrationService } from 'src/engine/core-modules/application/application-registration/application-registration.service';
 import { MarketplaceCatalogSyncCronJob } from 'src/engine/core-modules/application/application-marketplace/crons/marketplace-catalog-sync.cron.job';
 import { MarketplaceAppDTO } from 'src/engine/core-modules/application/application-marketplace/dtos/marketplace-app.dto';
+import { MarketplaceAppDetailDTO } from 'src/engine/core-modules/application/application-marketplace/dtos/marketplace-app-detail.dto';
 import { InjectMessageQueue } from 'src/engine/core-modules/message-queue/decorators/message-queue.decorator';
 import { MessageQueue } from 'src/engine/core-modules/message-queue/message-queue.constants';
 import { MessageQueueService } from 'src/engine/core-modules/message-queue/services/message-queue.service';
-
-const MARKETPLACE_CACHE_TTL_MS = 5 * 60 * 1000;
 
 @Injectable()
 export class MarketplaceQueryService {
@@ -51,13 +50,13 @@ export class MarketplaceQueryService {
     );
   }
 
-  async findOneMarketplaceApp(
+  async findMarketplaceAppDetail(
     universalIdentifier: string,
-  ): Promise<MarketplaceAppDTO> {
+  ): Promise<MarketplaceAppDetailDTO> {
     const registration =
       await this.findRegistrationByUniversalIdentifier(universalIdentifier);
 
-    return this.toMarketplaceAppDTO(registration);
+    return this.toMarketplaceAppDetailDTO(registration);
   }
 
   async findRegistrationByUniversalIdentifier(
@@ -78,34 +77,37 @@ export class MarketplaceQueryService {
     return registration;
   }
 
-  toMarketplaceAppDTO(
+  private toMarketplaceAppDTO(
     registration: ApplicationRegistrationEntity,
   ): MarketplaceAppDTO {
-    const displayData = registration.marketplaceDisplayData;
+    const app = registration.manifest?.application;
 
     return {
       id: registration.universalIdentifier,
-      name: registration.name,
-      description: registration.description ?? '',
-      icon: displayData?.icon ?? 'IconApps',
-      version:
-        displayData?.version ?? registration.latestAvailableVersion ?? '0.0.0',
-      author: registration.author ?? 'Unknown',
-      category: displayData?.category ?? '',
-      logo: displayData?.logo,
-      screenshots: displayData?.screenshots ?? [],
-      aboutDescription:
-        displayData?.aboutDescription ?? registration.description ?? '',
-      providers: displayData?.providers ?? [],
-      websiteUrl: registration.websiteUrl ?? undefined,
-      termsUrl: registration.termsUrl ?? undefined,
-      objects: displayData?.objects ?? [],
-      fields: displayData?.fields ?? [],
-      logicFunctions: displayData?.logicFunctions ?? [],
-      frontComponents: displayData?.frontComponents ?? [],
+      name: app?.displayName ?? registration.name,
+      description: app?.description ?? '',
+      icon: app?.icon ?? 'IconApps',
+      author: app?.author ?? 'Unknown',
+      category: app?.category ?? '',
+      logo: app?.logoUrl ?? undefined,
       sourcePackage: registration.sourcePackage ?? undefined,
-      defaultRole: displayData?.defaultRole,
       isFeatured: registration.isFeatured,
+    };
+  }
+
+  private toMarketplaceAppDetailDTO(
+    registration: ApplicationRegistrationEntity,
+  ): MarketplaceAppDetailDTO {
+    return {
+      universalIdentifier: registration.universalIdentifier,
+      name: registration.name,
+      sourceType: registration.sourceType,
+      sourcePackage: registration.sourcePackage ?? undefined,
+      latestAvailableVersion:
+        registration.latestAvailableVersion ?? undefined,
+      isListed: registration.isListed,
+      isFeatured: registration.isFeatured,
+      manifest: registration.manifest ?? undefined,
     };
   }
 }

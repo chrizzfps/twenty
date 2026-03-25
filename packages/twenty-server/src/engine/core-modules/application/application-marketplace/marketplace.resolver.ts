@@ -8,6 +8,7 @@ import { MetadataResolver } from 'src/engine/api/graphql/graphql-config/decorato
 import { ApplicationRegistrationExceptionFilter } from 'src/engine/core-modules/application/application-registration/application-registration-exception-filter';
 import { ApplicationInstallService } from 'src/engine/core-modules/application/application-install/application-install.service';
 import { MarketplaceAppDTO } from 'src/engine/core-modules/application/application-marketplace/dtos/marketplace-app.dto';
+import { MarketplaceAppDetailDTO } from 'src/engine/core-modules/application/application-marketplace/dtos/marketplace-app-detail.dto';
 import { MarketplaceQueryService } from 'src/engine/core-modules/application/application-marketplace/marketplace-query.service';
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { AuthWorkspace } from 'src/engine/decorators/auth/auth-workspace.decorator';
@@ -40,12 +41,12 @@ export class MarketplaceResolver {
     return this.marketplaceQueryService.findManyMarketplaceApps();
   }
 
-  @Query(() => MarketplaceAppDTO)
+  @Query(() => MarketplaceAppDetailDTO)
   @RequireFeatureFlag(FeatureFlagKey.IS_APPLICATION_ENABLED)
-  async findOneMarketplaceApp(
+  async findMarketplaceAppDetail(
     @Args('universalIdentifier') universalIdentifier: string,
-  ): Promise<MarketplaceAppDTO> {
-    return this.marketplaceQueryService.findOneMarketplaceApp(
+  ): Promise<MarketplaceAppDetailDTO> {
+    return this.marketplaceQueryService.findMarketplaceAppDetail(
       universalIdentifier,
     );
   }

@@ -4,7 +4,7 @@ import { ApplicationRegistrationService } from 'src/engine/core-modules/applicat
 import { ApplicationRegistrationSourceType } from 'src/engine/core-modules/application/application-registration/enums/application-registration-source-type.enum';
 import { MARKETPLACE_CATALOG_INDEX } from 'src/engine/core-modules/application/application-marketplace/constants/marketplace-catalog-index.constant';
 import { MarketplaceService } from 'src/engine/core-modules/application/application-marketplace/marketplace.service';
-import { buildMarketplaceDisplayDataFromManifest } from 'src/engine/core-modules/application/application-marketplace/utils/build-marketplace-display-data-from-manifest.util';
+import { buildRegistryCdnUrl } from 'src/engine/core-modules/application/application-marketplace/utils/build-registry-cdn-url.util';
 import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
 
 @Injectable()
@@ -30,18 +30,12 @@ export class MarketplaceCatalogSyncService {
         await this.applicationRegistrationService.upsertFromCatalog({
           universalIdentifier: entry.universalIdentifier,
           name: entry.name,
-          description:
-            entry.richDisplayData.aboutDescription ?? entry.description,
-          author: entry.author,
           sourceType: ApplicationRegistrationSourceType.NPM,
           sourcePackage: entry.sourcePackage,
-          logoUrl: entry.logoUrl ?? null,
-          websiteUrl: entry.websiteUrl ?? null,
-          termsUrl: entry.termsUrl ?? null,
-          latestAvailableVersion: entry.richDisplayData.version ?? null,
+          latestAvailableVersion: entry.latestAvailableVersion ?? null,
           isListed: true,
           isFeatured: entry.isFeatured,
-          marketplaceDisplayData: entry.richDisplayData,
+          manifest: null,
           ownerWorkspaceId: null,
         });
       } catch (error) {
@@ -83,29 +77,40 @@ export class MarketplaceCatalogSyncService {
 
         const cdnBaseUrl = this.twentyConfigService.get('APP_REGISTRY_CDN_URL');
 
-        const displayData = buildMarketplaceDisplayDataFromManifest({
-          manifest,
-          packageName: pkg.name,
-          version: pkg.version,
-          cdnBaseUrl,
-        });
+        // Resolve file paths to CDN URLs in the manifest before storing
+        const manifestWithResolvedUrls = {
+          ...manifest,
+          application: {
+            ...manifest.application,
+            logoUrl: manifest.application.logoUrl
+              ? buildRegistryCdnUrl({
+                  cdnBaseUrl,
+                  packageName: pkg.name,
+                  version: pkg.version,
+                  filePath: manifest.application.logoUrl,
+                })
+              : undefined,
+            screenshots: (manifest.application.screenshots ?? []).map(
+              (filePath) =>
+                buildRegistryCdnUrl({
+                  cdnBaseUrl,
+                  packageName: pkg.name,
+                  version: pkg.version,
+                  filePath,
+                }),
+            ),
+          },
+        };
 
         await this.applicationRegistrationService.upsertFromCatalog({
           universalIdentifier,
           name: manifest.application.displayName ?? pkg.name,
-          description:
-            manifest.application.aboutDescription ?? pkg.description,
-          author: manifest.application.author ?? pkg.author,
           sourceType: ApplicationRegistrationSourceType.NPM,
           sourcePackage: pkg.name,
-          logoUrl: displayData.logo ?? null,
-          websiteUrl:
-            manifest.application.websiteUrl ?? pkg.websiteUrl ?? null,
-          termsUrl: manifest.application.termsUrl ?? null,
           latestAvailableVersion: pkg.version ?? null,
           isListed: true,
           isFeatured: false,
-          marketplaceDisplayData: displayData,
+          manifest: manifestWithResolvedUrls,
           ownerWorkspaceId: null,
         });
       } catch (error) {
