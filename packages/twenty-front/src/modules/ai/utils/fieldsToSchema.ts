@@ -3,6 +3,7 @@ import {
   type AgentResponseFieldType,
   type AgentResponseSchema,
 } from 'twenty-shared/ai';
+import { isDefined } from 'twenty-shared/utils';
 
 export const fieldsToSchema = (
   fields: OutputSchemaField[],
@@ -13,15 +14,17 @@ export const fieldsToSchema = (
   > = {};
   const required: string[] = [];
 
-  fields
-    .filter((field) => field.name.trim() && field.type)
-    .forEach((field) => {
-      properties[field.name] = {
-        type: field.type!,
-        description: field.description || field.name,
-      };
-      required.push(field.name);
-    });
+  for (const field of fields) {
+    if (!field.name.trim() || !isDefined(field.type)) {
+      continue;
+    }
+
+    properties[field.name] = {
+      type: field.type,
+      description: field.description || field.name,
+    };
+    required.push(field.name);
+  }
 
   return {
     type: 'object' as const,

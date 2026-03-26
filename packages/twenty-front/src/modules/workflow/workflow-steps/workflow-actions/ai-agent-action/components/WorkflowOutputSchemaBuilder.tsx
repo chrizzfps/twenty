@@ -1,6 +1,7 @@
 import { FormFieldInputContainer } from '@/object-record/record-field/ui/form-types/components/FormFieldInputContainer';
 import { FormTextFieldInput } from '@/object-record/record-field/ui/form-types/components/FormTextFieldInput';
 
+import { createDefaultOutputSchemaField } from '@/ai/constants/DefaultOutputSchemaField';
 import { type OutputSchemaField } from '@/ai/constants/OutputFieldTypeOptions';
 import { InputLabel } from '@/ui/input/components/InputLabel';
 import { styled } from '@linaria/react';
@@ -10,7 +11,6 @@ import { IconChevronDown, IconPlus, IconX } from 'twenty-ui/display';
 import { LightIconButton } from 'twenty-ui/input';
 import { AnimatedExpandableContainer } from 'twenty-ui/layout';
 import { ThemeContext, themeCssVariables } from 'twenty-ui/theme-constants';
-import { v4 } from 'uuid';
 import { WorkflowOutputFieldTypeSelector } from './WorkflowOutputFieldTypeSelector';
 type WorkflowOutputSchemaBuilderProps = {
   fields: OutputSchemaField[];
@@ -137,12 +137,7 @@ export const WorkflowOutputSchemaBuilder = ({
   };
 
   const addField = () => {
-    const newField: OutputSchemaField = {
-      id: v4(),
-      name: '',
-      description: '',
-      type: 'string',
-    };
+    const newField = createDefaultOutputSchemaField();
 
     setExpandedFieldIds(
       (previousExpandedFieldIds) =>

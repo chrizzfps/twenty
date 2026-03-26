@@ -38,8 +38,6 @@ export const WorkflowAiAgentPromptTab = ({
 }: WorkflowAiAgentPromptTabProps) => {
   const [workflowAiAgentActionAgent, setWorkflowAiAgentActionAgent] =
     useAtomState(workflowAiAgentActionAgentState);
-  const agent = workflowAiAgentActionAgent!;
-
   const { options: aiModelOptions, pinnedOption } = useAiModelOptions();
   const [updateAgent] = useMutation(UpdateOneAgentDocument);
   const { updateWorkflowVersionStep } = useUpdateWorkflowVersionStep();
@@ -48,7 +46,8 @@ export const WorkflowAiAgentPromptTab = ({
   const [outputSchemaFields, setOutputSchemaFields] = useState<
     OutputSchemaField[]
   >(() => {
-    const schema: AgentResponseSchema = agent.responseFormat?.schema || {
+    const schema: AgentResponseSchema = workflowAiAgentActionAgent
+      ?.responseFormat?.schema || {
       type: 'object' as const,
       properties: {},
       required: [],
@@ -61,6 +60,43 @@ export const WorkflowAiAgentPromptTab = ({
       : [createDefaultOutputSchemaField()];
   });
 
+  const updateResponseSchema = async (schema: AgentResponseSchema) => {
+    if (readonly || !workflowAiAgentActionAgent) return;
+
+    const response = await updateAgent({
+      variables: {
+        input: {
+          id: workflowAiAgentActionAgent.id,
+          responseFormat: { type: 'json' as const, schema },
+        },
+      },
+    });
+
+    const updatedAgent = response.data?.updateOneAgent;
+
+    if (updatedAgent) {
+      setWorkflowAiAgentActionAgent((previousAgent) =>
+        previousAgent ? { ...previousAgent, ...updatedAgent } : previousAgent,
+      );
+    }
+
+    await updateWorkflowVersionStep({
+      workflowVersionId: flow.workflowVersionId,
+      step: action,
+    });
+  };
+
+  const debouncedUpdateResponseSchema = useDebouncedCallback(
+    updateResponseSchema,
+    300,
+  );
+
+  if (!workflowAiAgentActionAgent) {
+    return null;
+  }
+
+  const agent = workflowAiAgentActionAgent;
+
   const handleModelChange = async (modelId: string) => {
     if (readonly) return;
 
@@ -68,10 +104,13 @@ export const WorkflowAiAgentPromptTab = ({
       variables: { input: { id: agent.id, modelId } },
     });
 
-    setWorkflowAiAgentActionAgent({
-      ...agent,
-      ...response.data?.updateOneAgent,
-    });
+    const updatedAgent = response.data?.updateOneAgent;
+
+    if (updatedAgent) {
+      setWorkflowAiAgentActionAgent((previousAgent) =>
+        previousAgent ? { ...previousAgent, ...updatedAgent } : previousAgent,
+      );
+    }
   };
 
   const handleModelConfigurationChange = async (
@@ -85,39 +124,14 @@ export const WorkflowAiAgentPromptTab = ({
       },
     });
 
-    setWorkflowAiAgentActionAgent({
-      ...agent,
-      ...response.data?.updateOneAgent,
-    });
+    const updatedAgent = response.data?.updateOneAgent;
+
+    if (updatedAgent) {
+      setWorkflowAiAgentActionAgent((previousAgent) =>
+        previousAgent ? { ...previousAgent, ...updatedAgent } : previousAgent,
+      );
+    }
   };
-
-  const updateResponseSchema = async (schema: AgentResponseSchema) => {
-    if (readonly) return;
-
-    const response = await updateAgent({
-      variables: {
-        input: {
-          id: agent.id,
-          responseFormat: { type: 'json' as const, schema },
-        },
-      },
-    });
-
-    setWorkflowAiAgentActionAgent({
-      ...agent,
-      ...response.data?.updateOneAgent,
-    });
-
-    await updateWorkflowVersionStep({
-      workflowVersionId: flow.workflowVersionId,
-      step: action,
-    });
-  };
-
-  const debouncedUpdateResponseSchema = useDebouncedCallback(
-    updateResponseSchema,
-    300,
-  );
 
   const handleOutputSchemaChange = (updatedFields: OutputSchemaField[]) => {
     setOutputSchemaFields(updatedFields);
