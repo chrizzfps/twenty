@@ -1,7 +1,7 @@
 import { FormFieldInputContainer } from '@/object-record/record-field/ui/form-types/components/FormFieldInputContainer';
 import { FormTextFieldInput } from '@/object-record/record-field/ui/form-types/components/FormTextFieldInput';
 
-import { createDefaultOutputSchemaField } from '@/ai/constants/DefaultOutputSchemaField';
+import { createDefaultOutputSchemaField } from '@/ai/utils/createDefaultOutputSchemaField';
 import { type OutputSchemaField } from '@/ai/constants/OutputFieldTypeOptions';
 import { InputLabel } from '@/ui/input/components/InputLabel';
 import { styled } from '@linaria/react';
@@ -50,7 +50,9 @@ const StyledSettingsHeader = styled.div<{ readonly: boolean }>`
   display: grid;
   gap: ${themeCssVariables.spacing[1]};
   grid-template-columns: ${({ readonly: isReadonly }) =>
-    isReadonly ? '1fr 24px' : '1fr 24px 24px'};
+    isReadonly
+      ? `1fr ${themeCssVariables.spacing[6]}`
+      : `1fr ${themeCssVariables.spacing[6]} ${themeCssVariables.spacing[6]}`};
   height: ${themeCssVariables.spacing[8]};
   padding-inline: ${themeCssVariables.spacing[2]};
 `;

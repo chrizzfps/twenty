@@ -130,6 +130,10 @@ export const WorkflowEditActionAiAgent = ({
     (item) => item.id === workflowAiAgentActionAgent?.roleId,
   );
 
+  const isCurrentAgentLoaded =
+    isDefined(workflowAiAgentActionAgent) &&
+    workflowAiAgentActionAgent.id === agentId;
+
   const handleViewRole = () => {
     if (isDefined(role?.id)) {
       navigateSettings(SettingsPath.RoleDetail, { roleId: role.id });
@@ -165,7 +169,7 @@ export const WorkflowEditActionAiAgent = ({
     ];
   };
 
-  return agentLoading || !isDefined(workflowAiAgentActionAgent) ? (
+  return agentLoading || !isCurrentAgentLoaded ? (
     <SidePanelSkeletonLoader />
   ) : (
     <>

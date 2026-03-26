@@ -56,9 +56,7 @@ export const useAiModelOptions = ({
 
   const options =
     variant === 'pinned-default' && resolvedDefaultModelId
-      ? allOptions.filter(
-          (model) => model.value !== resolvedDefaultModelId,
-        )
+      ? allOptions.filter((model) => model.value !== resolvedDefaultModelId)
       : allOptions;
 
   return {

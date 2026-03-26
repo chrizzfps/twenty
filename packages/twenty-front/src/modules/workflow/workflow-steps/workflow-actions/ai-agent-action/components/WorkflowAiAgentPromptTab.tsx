@@ -1,4 +1,4 @@
-import { createDefaultOutputSchemaField } from '@/ai/constants/DefaultOutputSchemaField';
+import { createDefaultOutputSchemaField } from '@/ai/utils/createDefaultOutputSchemaField';
 import { type OutputSchemaField } from '@/ai/constants/OutputFieldTypeOptions';
 import { useAiModelOptions } from '@/ai/hooks/useAiModelOptions';
 import { fieldsToSchema } from '@/ai/utils/fieldsToSchema';

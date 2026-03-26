@@ -110,12 +110,7 @@ export const AIChatEditorSection = () => {
     variant: 'pinned-default',
   });
 
-  const smartModelOptions: SelectOption<string | null>[] = options.map(
-    (option) => ({
-      ...option,
-      value: option.value,
-    }),
-  );
+  const smartModelOptions = options as SelectOption<string | null>[];
   const defaultPinnedOption: SelectOption<string | null> | undefined =
     pinnedOption
       ? {
