@@ -17,6 +17,7 @@ import { agentChatUserSelectedModelState } from '@/ai/states/agentChatUserSelect
 import { Select } from '@/ui/input/components/Select';
 import { useIsMobile } from '@/ui/utilities/responsive/hooks/useIsMobile';
 import { useSetAtomState } from '@/ui/utilities/state/jotai/hooks/useSetAtomState';
+import { type SelectOption } from 'twenty-ui/input';
 
 const StyledInputArea = styled.div<{ isMobile: boolean }>`
   align-items: flex-end;
@@ -105,11 +106,23 @@ const StyledRightButtonsContainer = styled.div`
 
 export const AIChatEditorSection = () => {
   const isMobile = useIsMobile();
-  const { options: smartModelOptions, pinnedOption: defaultPinnedOption } =
-    useAiModelOptions<string | null>({
-      variant: 'pinned-default',
-      pinnedDefaultValue: null,
-    });
+  const { options, pinnedOption } = useAiModelOptions({
+    variant: 'pinned-default',
+  });
+
+  const smartModelOptions: SelectOption<string | null>[] = options.map(
+    (option) => ({
+      ...option,
+      value: option.value,
+    }),
+  );
+  const defaultPinnedOption: SelectOption<string | null> | undefined =
+    pinnedOption
+      ? {
+          ...pinnedOption,
+          value: null,
+        }
+      : undefined;
   const setAgentChatUserSelectedModel = useSetAtomState(
     agentChatUserSelectedModelState,
   );

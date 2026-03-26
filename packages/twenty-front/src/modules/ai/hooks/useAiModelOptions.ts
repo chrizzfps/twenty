@@ -10,17 +10,15 @@ import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomState
 
 type UseAiModelOptionsVariant = 'all' | 'pinned-default';
 
-type UseAiModelOptionsOptions<TValue extends string | null> = {
+type UseAiModelOptionsOptions = {
   variant?: UseAiModelOptionsVariant;
-  pinnedDefaultValue?: TValue;
 };
 
-export const useAiModelOptions = <TValue extends string | null = string>({
+export const useAiModelOptions = ({
   variant = 'all',
-  pinnedDefaultValue,
-}: UseAiModelOptionsOptions<TValue> = {}): {
-  options: SelectOption<TValue>[];
-  pinnedOption?: SelectOption<TValue>;
+}: UseAiModelOptionsOptions = {}): {
+  options: SelectOption<string>[];
+  pinnedOption?: SelectOption<string>;
 } => {
   const aiModels = useAtomStateValue(aiModelsState);
   const currentWorkspace = useAtomStateValue(currentWorkspaceState);
@@ -38,7 +36,7 @@ export const useAiModelOptions = <TValue extends string | null = string>({
 
   const allOptions = enabledModels
     .map((model) => ({
-      value: model.modelId as TValue,
+      value: model.modelId,
       label: model.label,
       Icon: getModelIcon(model.modelFamily, model.providerName),
     }))
@@ -46,10 +44,7 @@ export const useAiModelOptions = <TValue extends string | null = string>({
 
   const pinnedOption = workspaceSmartModel
     ? {
-        value:
-          typeof pinnedDefaultValue === 'undefined'
-            ? ((resolvedDefaultModelId ?? workspaceSmartModel.modelId) as TValue)
-            : pinnedDefaultValue,
+        value: resolvedDefaultModelId ?? workspaceSmartModel.modelId,
         label: workspaceSmartModel.label,
         Icon: getModelIcon(
           workspaceSmartModel.modelFamily,
@@ -62,7 +57,7 @@ export const useAiModelOptions = <TValue extends string | null = string>({
   const options =
     variant === 'pinned-default' && resolvedDefaultModelId
       ? allOptions.filter(
-          (model) => model.value !== (resolvedDefaultModelId as TValue),
+          (model) => model.value !== resolvedDefaultModelId,
         )
       : allOptions;
 
