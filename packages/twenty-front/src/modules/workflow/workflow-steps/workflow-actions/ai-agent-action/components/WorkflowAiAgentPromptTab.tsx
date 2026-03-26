@@ -38,7 +38,9 @@ export const WorkflowAiAgentPromptTab = ({
 }: WorkflowAiAgentPromptTabProps) => {
   const [workflowAiAgentActionAgent, setWorkflowAiAgentActionAgent] =
     useAtomState(workflowAiAgentActionAgentState);
-  const { options: aiModelOptions, pinnedOption } = useAiModelOptions();
+  const { options: aiModelOptions, pinnedOption } = useAiModelOptions({
+    variant: 'pinned-default',
+  });
   const [updateAgent] = useMutation(UpdateOneAgentDocument);
   const { updateWorkflowVersionStep } = useUpdateWorkflowVersionStep();
   const flow = useFlowOrThrow();

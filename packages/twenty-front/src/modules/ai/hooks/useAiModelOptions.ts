@@ -8,9 +8,19 @@ import { aiModelsState } from '@/client-config/states/aiModelsState';
 import { getModelIcon } from '@/settings/admin-panel/ai/utils/getModelIcon';
 import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 
-export const useAiModelOptions = (): {
-  options: SelectOption<string>[];
-  pinnedOption?: SelectOption<string>;
+type UseAiModelOptionsVariant = 'all' | 'pinned-default';
+
+type UseAiModelOptionsOptions<TValue extends string | null> = {
+  variant?: UseAiModelOptionsVariant;
+  pinnedDefaultValue?: TValue;
+};
+
+export const useAiModelOptions = <TValue extends string | null = string>({
+  variant = 'all',
+  pinnedDefaultValue,
+}: UseAiModelOptionsOptions<TValue> = {}): {
+  options: SelectOption<TValue>[];
+  pinnedOption?: SelectOption<TValue>;
 } => {
   const aiModels = useAtomStateValue(aiModelsState);
   const currentWorkspace = useAtomStateValue(currentWorkspaceState);
@@ -26,9 +36,20 @@ export const useAiModelOptions = (): {
       model.providerName === workspaceSmartModel?.providerName,
   )?.modelId;
 
+  const allOptions = enabledModels
+    .map((model) => ({
+      value: model.modelId as TValue,
+      label: model.label,
+      Icon: getModelIcon(model.modelFamily, model.providerName),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
   const pinnedOption = workspaceSmartModel
     ? {
-        value: resolvedDefaultModelId ?? workspaceSmartModel.modelId,
+        value:
+          typeof pinnedDefaultValue === 'undefined'
+            ? ((resolvedDefaultModelId ?? workspaceSmartModel.modelId) as TValue)
+            : pinnedDefaultValue,
         label: workspaceSmartModel.label,
         Icon: getModelIcon(
           workspaceSmartModel.modelFamily,
@@ -38,16 +59,17 @@ export const useAiModelOptions = (): {
       }
     : undefined;
 
-  const options = enabledModels
-    .filter((model) => model.modelId !== resolvedDefaultModelId)
-    .map((model) => ({
-      value: model.modelId,
-      label: model.label,
-      Icon: getModelIcon(model.modelFamily, model.providerName),
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+  const options =
+    variant === 'pinned-default' && resolvedDefaultModelId
+      ? allOptions.filter(
+          (model) => model.value !== (resolvedDefaultModelId as TValue),
+        )
+      : allOptions;
 
-  return { options, pinnedOption };
+  return {
+    options,
+    pinnedOption: variant === 'pinned-default' ? pinnedOption : undefined,
+  };
 };
 
 export const useAiModelLabel = (
