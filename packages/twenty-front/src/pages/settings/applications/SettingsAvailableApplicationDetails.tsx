@@ -19,12 +19,19 @@ import {
   IconColumns,
   IconCommand,
   IconDownload,
+  IconEye,
   IconEyeOff,
   IconFileText,
   IconInfoCircle,
+  IconLayout,
   IconLayoutGrid,
   IconLock,
+  IconList,
+  IconPhoto,
+  IconRobot,
   IconSettings,
+  IconShield,
+  IconWand,
   IconWorld,
 } from 'twenty-ui/display';
 import { Button } from 'twenty-ui/input';
@@ -293,16 +300,27 @@ export const SettingsAvailableApplicationDetails = () => {
   const providers = app?.providers ?? [];
   const aboutDescription = app?.aboutDescription ?? description;
 
-  const contentCounts = {
-    objects: (manifest?.objects ?? []).length,
-    fields:
-      (manifest?.objects ?? []).reduce(
-        (count, obj) => count + (obj.fields?.length ?? 0),
-        0,
-      ) + (manifest?.fields ?? []).length,
-    functions: (manifest?.logicFunctions ?? []).length,
-    frontComponents: (manifest?.frontComponents ?? []).length,
-  };
+  const contentEntries = [
+    { label: t`Objects`, icon: IconLayoutGrid, count: (manifest?.objects ?? []).length },
+    {
+      label: t`Fields`,
+      icon: IconColumns,
+      count:
+        (manifest?.objects ?? []).reduce(
+          (sum, obj) => sum + (obj.fields?.length ?? 0),
+          0,
+        ) + (manifest?.fields ?? []).length,
+    },
+    { label: t`Logic functions`, icon: IconCommand, count: (manifest?.logicFunctions ?? []).length },
+    { label: t`Front components`, icon: IconApps, count: (manifest?.frontComponents ?? []).length },
+    { label: t`Roles`, icon: IconShield, count: (manifest?.roles ?? []).length },
+    { label: t`Skills`, icon: IconWand, count: (manifest?.skills ?? []).length },
+    { label: t`Agents`, icon: IconRobot, count: (manifest?.agents ?? []).length },
+    { label: t`Views`, icon: IconEye, count: (manifest?.views ?? []).length },
+    { label: t`Navigation items`, icon: IconList, count: (manifest?.navigationMenuItems ?? []).length },
+    { label: t`Page layouts`, icon: IconLayout, count: (manifest?.pageLayouts ?? []).length },
+    { label: t`Public assets`, icon: IconPhoto, count: (manifest?.publicAssets ?? []).length },
+  ].filter((entry) => entry.count > 0);
 
   const isUnlisted = isDefined(detail) && !detail.isListed;
   const isAlreadyInstalled = isDefined(installedAppData?.findOneApplication);
@@ -367,23 +385,29 @@ export const SettingsAvailableApplicationDetails = () => {
 
             <StyledContentContainer>
               <StyledMainContent>
-                <Section>
-                  <StyledSectionTitle>{t`About`}</StyledSectionTitle>
-                  <StyledAboutText>{aboutDescription}</StyledAboutText>
+                {(aboutDescription || providers.length > 0) && (
+                  <Section>
+                    {aboutDescription && (
+                      <>
+                        <StyledSectionTitle>{t`About`}</StyledSectionTitle>
+                        <StyledAboutText>{aboutDescription}</StyledAboutText>
+                      </>
+                    )}
 
-                  {providers.length > 0 && (
-                    <>
-                      <StyledSectionTitle>{t`Providers`}</StyledSectionTitle>
-                      <StyledProvidersList>
-                        {providers.map((provider) => (
-                          <StyledProviderItem key={provider}>
-                            {provider}
-                          </StyledProviderItem>
-                        ))}
-                      </StyledProvidersList>
-                    </>
-                  )}
-                </Section>
+                    {providers.length > 0 && (
+                      <>
+                        <StyledSectionTitle>{t`Providers`}</StyledSectionTitle>
+                        <StyledProvidersList>
+                          {providers.map((provider) => (
+                            <StyledProviderItem key={provider}>
+                              {provider}
+                            </StyledProviderItem>
+                          ))}
+                        </StyledProvidersList>
+                      </>
+                    )}
+                  </Section>
+                )}
               </StyledMainContent>
 
               <StyledSidebar>
@@ -401,25 +425,17 @@ export const SettingsAvailableApplicationDetails = () => {
                   </StyledSidebarSection>
                 )}
 
-                <StyledSidebarSection>
-                  <StyledSidebarLabel>{t`Content`}</StyledSidebarLabel>
-                  <StyledContentItem>
-                    <IconLayoutGrid size={16} />
-                    {contentCounts.objects} {t`objects`}
-                  </StyledContentItem>
-                  <StyledContentItem>
-                    <IconColumns size={16} />
-                    {contentCounts.fields} {t`fields`}
-                  </StyledContentItem>
-                  <StyledContentItem>
-                    <IconApps size={16} />
-                    {contentCounts.frontComponents} {t`front components`}
-                  </StyledContentItem>
-                  <StyledContentItem>
-                    <IconCommand size={16} />
-                    {contentCounts.functions} {t`functions`}
-                  </StyledContentItem>
-                </StyledSidebarSection>
+                {contentEntries.length > 0 && (
+                  <StyledSidebarSection>
+                    <StyledSidebarLabel>{t`Content`}</StyledSidebarLabel>
+                    {contentEntries.map((entry) => (
+                      <StyledContentItem key={entry.label}>
+                        <entry.icon size={16} />
+                        {entry.count} {entry.label.toLowerCase()}
+                      </StyledContentItem>
+                    ))}
+                  </StyledSidebarSection>
+                )}
 
                 <StyledSidebarSection>
                   <StyledSidebarLabel>{t`Latest`}</StyledSidebarLabel>
