@@ -18,8 +18,8 @@ import { getSettingsPath } from 'twenty-shared/utils';
 import {
   ApplicationRegistrationSourceType,
   FindApplicationRegistrationStatsDocument,
+  GetApplicationShareLinkDocument,
 } from '~/generated-metadata/graphql';
-import { GET_APPLICATION_SHARE_LINK } from '@/settings/application-registrations/graphql/queries/getApplicationShareLink';
 import { themeCssVariables } from 'twenty-ui/theme-constants';
 import { useCopyToClipboard } from '~/hooks/useCopyToClipboard';
 import { type ApplicationRegistrationData } from '~/pages/settings/applications/tabs/types/ApplicationRegistrationData';
@@ -47,14 +47,12 @@ export const SettingsApplicationRegistrationDistributionTab = ({
   const isTarballSource =
     registration.sourceType === ApplicationRegistrationSourceType.TARBALL;
 
-  const { data: shareLinkData } = useQuery(GET_APPLICATION_SHARE_LINK, {
+  const { data: shareLinkData } = useQuery(GetApplicationShareLinkDocument, {
     variables: { id: applicationRegistrationId },
     skip: !isTarballSource || !applicationRegistrationId,
   });
 
-  const shareLink = shareLinkData?.getApplicationShareLink as
-    | string
-    | undefined;
+  const shareLink = shareLinkData?.getApplicationShareLink;
 
   const { data: statsData } = useQuery(
     FindApplicationRegistrationStatsDocument,

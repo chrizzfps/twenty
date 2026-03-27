@@ -63,14 +63,11 @@ export class MarketplaceCatalogSyncService {
           );
 
         if (!manifest) {
-          this.logger.debug(
-            `Skipping ${pkg.name}: no manifest found on CDN`,
-          );
+          this.logger.debug(`Skipping ${pkg.name}: no manifest found on CDN`);
           continue;
         }
 
-        const universalIdentifier =
-          manifest.application.universalIdentifier;
+        const universalIdentifier = manifest.application.universalIdentifier;
 
         if (curatedIdentifiers.has(universalIdentifier)) {
           continue;
