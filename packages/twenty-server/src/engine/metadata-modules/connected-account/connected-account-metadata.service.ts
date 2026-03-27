@@ -3,18 +3,39 @@ import { InjectRepository } from '@nestjs/typeorm';
 
 import { In, Repository } from 'typeorm';
 
+import { InjectMessageQueue } from 'src/engine/core-modules/message-queue/decorators/message-queue.decorator';
+import { MessageQueue } from 'src/engine/core-modules/message-queue/message-queue.constants';
+import { MessageQueueService } from 'src/engine/core-modules/message-queue/services/message-queue.service';
+import { CalendarChannelEntity } from 'src/engine/metadata-modules/calendar-channel/entities/calendar-channel.entity';
 import {
   ConnectedAccountException,
   ConnectedAccountExceptionCode,
 } from 'src/engine/metadata-modules/connected-account/connected-account.exception';
 import { ConnectedAccountDTO } from 'src/engine/metadata-modules/connected-account/dtos/connected-account.dto';
 import { ConnectedAccountEntity } from 'src/engine/metadata-modules/connected-account/entities/connected-account.entity';
+import { MessageChannelEntity } from 'src/engine/metadata-modules/message-channel/entities/message-channel.entity';
+import {
+  DeleteConnectedAccountAssociatedCalendarDataJob,
+  type DeleteConnectedAccountAssociatedCalendarDataJobData,
+} from 'src/modules/calendar/calendar-event-cleaner/jobs/delete-connected-account-associated-calendar-data.job';
+import {
+  MessagingConnectedAccountDeletionCleanupJob,
+  type MessagingConnectedAccountDeletionCleanupJobData,
+} from 'src/modules/messaging/message-cleaner/jobs/messaging-connected-account-deletion-cleanup.job';
 
 @Injectable()
 export class ConnectedAccountMetadataService {
   constructor(
     @InjectRepository(ConnectedAccountEntity)
     private readonly repository: Repository<ConnectedAccountEntity>,
+    @InjectRepository(MessageChannelEntity)
+    private readonly messageChannelRepository: Repository<MessageChannelEntity>,
+    @InjectRepository(CalendarChannelEntity)
+    private readonly calendarChannelRepository: Repository<CalendarChannelEntity>,
+    @InjectMessageQueue(MessageQueue.messagingQueue)
+    private readonly messagingQueueService: MessageQueueService,
+    @InjectMessageQueue(MessageQueue.calendarQueue)
+    private readonly calendarQueueService: MessageQueueService,
   ) {}
 
   async findAll(workspaceId: string): Promise<ConnectedAccountDTO[]> {
@@ -140,6 +161,41 @@ export class ConnectedAccountMetadataService {
     const connectedAccount = await this.repository.findOneOrFail({
       where: { id, workspaceId },
     });
+
+    // Capture channel IDs before cascade deletes them
+    const messageChannels = await this.messageChannelRepository.find({
+      where: { connectedAccountId: id, workspaceId },
+      select: ['id'],
+    });
+
+    const calendarChannels = await this.calendarChannelRepository.find({
+      where: { connectedAccountId: id, workspaceId },
+      select: ['id'],
+    });
+
+    // Enqueue cleanup jobs with channel IDs so workers can delete
+    // workspace-side associations that core cascade can't reach
+    if (messageChannels.length > 0) {
+      await this.messagingQueueService.add<MessagingConnectedAccountDeletionCleanupJobData>(
+        MessagingConnectedAccountDeletionCleanupJob.name,
+        {
+          workspaceId,
+          connectedAccountId: id,
+          messageChannelIds: messageChannels.map((ch) => ch.id),
+        },
+      );
+    }
+
+    if (calendarChannels.length > 0) {
+      await this.calendarQueueService.add<DeleteConnectedAccountAssociatedCalendarDataJobData>(
+        DeleteConnectedAccountAssociatedCalendarDataJob.name,
+        {
+          workspaceId,
+          connectedAccountId: id,
+          calendarChannelIds: calendarChannels.map((ch) => ch.id),
+        },
+      );
+    }
 
     await this.repository.delete({ id, workspaceId });
 
