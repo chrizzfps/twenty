@@ -18,4 +18,5 @@ export type ComponentFamilyState<ValueType, FamilyKey> = {
   atomFamily: (
     key: ComponentFamilyStateKey<FamilyKey>,
   ) => JotaiWritableAtom<ValueType>;
+  cleanup: (instanceId: string) => void;
 };

@@ -2,6 +2,7 @@ import { atom } from 'jotai';
 
 import { type ComponentInstanceStateContext } from '@/ui/utilities/state/component-state/types/ComponentInstanceStateContext';
 import { globalComponentInstanceContextMap } from '@/ui/utilities/state/component-state/utils/globalComponentInstanceContextMap';
+import { registerAtomCleanupForInstance } from '@/ui/utilities/state/component-state/utils/componentStateContextScopeRegistry';
 import {
   type ComponentFamilyStateKey,
   type ComponentFamilyState,
@@ -46,12 +47,26 @@ export const createAtomComponentFamilyState = <ValueType, FamilyKey>({
     baseAtom.debugLabel = `${key}__${cacheKey}`;
     atomCache.set(cacheKey, baseAtom);
 
+    registerAtomCleanupForInstance(instanceId, () => {
+      atomCache.delete(cacheKey);
+    });
+
     return baseAtom;
+  };
+
+  const cleanup = (instanceId: string): void => {
+    const prefix = `${instanceId}__`;
+    for (const cacheKey of atomCache.keys()) {
+      if (cacheKey.startsWith(prefix)) {
+        atomCache.delete(cacheKey);
+      }
+    }
   };
 
   return {
     type: 'ComponentFamilyState',
     key,
     atomFamily: familyFunction,
+    cleanup,
   };
 };

@@ -3,6 +3,7 @@ import { atom } from 'jotai';
 import { type ComponentInstanceStateContext } from '@/ui/utilities/state/component-state/types/ComponentInstanceStateContext';
 import { type ComponentStateKey } from '@/ui/utilities/state/component-state/types/ComponentStateKey';
 import { globalComponentInstanceContextMap } from '@/ui/utilities/state/component-state/utils/globalComponentInstanceContextMap';
+import { registerAtomCleanupForInstance } from '@/ui/utilities/state/component-state/utils/componentStateContextScopeRegistry';
 import { type ComponentState } from '@/ui/utilities/state/jotai/types/ComponentState';
 import { isDefined } from 'twenty-shared/utils';
 
@@ -39,12 +40,21 @@ export const createAtomComponentState = <ValueType>({
     baseAtom.debugLabel = `${key}__${instanceId}`;
     atomCache.set(instanceId, baseAtom);
 
+    registerAtomCleanupForInstance(instanceId, () => {
+      atomCache.delete(instanceId);
+    });
+
     return baseAtom;
+  };
+
+  const cleanup = (instanceId: string): void => {
+    atomCache.delete(instanceId);
   };
 
   return {
     type: 'ComponentState',
     key,
     atomFamily: familyFunction,
+    cleanup,
   };
 };

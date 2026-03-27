@@ -1,7 +1,11 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 
 import { useAvailableComponentInstanceIdOrThrow } from '@/ui/utilities/state/component-state/hooks/useAvailableComponentInstanceIdOrThrow';
 import { globalComponentInstanceContextMap } from '@/ui/utilities/state/component-state/utils/globalComponentInstanceContextMap';
+import {
+  decrementComponentStateSubscriberCount,
+  incrementComponentStateSubscriberCount,
+} from '@/ui/utilities/state/component-state/utils/componentStateSubscriberRegistry';
 import { type ComponentFamilyState } from '@/ui/utilities/state/jotai/types/ComponentFamilyState';
 
 export const useAtomComponentFamilyStateCallbackState = <StateType, FamilyKey>(
@@ -24,6 +28,13 @@ export const useAtomComponentFamilyStateCallbackState = <StateType, FamilyKey>(
     componentInstanceContext,
     instanceIdFromProps,
   );
+
+  useEffect(() => {
+    incrementComponentStateSubscriberCount(componentFamilyState.key, instanceId);
+    return () => {
+      decrementComponentStateSubscriberCount(componentFamilyState.key, instanceId);
+    };
+  }, [componentFamilyState.key, instanceId]);
 
   return useCallback(
     (familyKey: FamilyKey) =>

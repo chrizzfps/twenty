@@ -1,7 +1,12 @@
 import { useAtom } from 'jotai';
+import { useEffect } from 'react';
 
 import { useAvailableComponentInstanceIdOrThrow } from '@/ui/utilities/state/component-state/hooks/useAvailableComponentInstanceIdOrThrow';
 import { globalComponentInstanceContextMap } from '@/ui/utilities/state/component-state/utils/globalComponentInstanceContextMap';
+import {
+  decrementComponentStateSubscriberCount,
+  incrementComponentStateSubscriberCount,
+} from '@/ui/utilities/state/component-state/utils/componentStateSubscriberRegistry';
 import { type ComponentFamilyState } from '@/ui/utilities/state/jotai/types/ComponentFamilyState';
 
 export const useAtomComponentFamilyState = <StateType, FamilyKey>(
@@ -26,6 +31,13 @@ export const useAtomComponentFamilyState = <StateType, FamilyKey>(
     componentInstanceContext,
     instanceIdFromProps,
   );
+
+  useEffect(() => {
+    incrementComponentStateSubscriberCount(componentState.key, instanceId);
+    return () => {
+      decrementComponentStateSubscriberCount(componentState.key, instanceId);
+    };
+  }, [componentState.key, instanceId]);
 
   return useAtom(componentState.atomFamily({ instanceId, familyKey }));
 };

@@ -1,7 +1,11 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { useAvailableComponentInstanceIdOrThrow } from '@/ui/utilities/state/component-state/hooks/useAvailableComponentInstanceIdOrThrow';
 import { globalComponentInstanceContextMap } from '@/ui/utilities/state/component-state/utils/globalComponentInstanceContextMap';
+import {
+  decrementComponentStateSubscriberCount,
+  incrementComponentStateSubscriberCount,
+} from '@/ui/utilities/state/component-state/utils/componentStateSubscriberRegistry';
 import { type ComponentState } from '@/ui/utilities/state/jotai/types/ComponentState';
 
 export const useAtomComponentStateCallbackState = <StateType>(
@@ -22,6 +26,13 @@ export const useAtomComponentStateCallbackState = <StateType>(
     componentInstanceContext,
     instanceIdFromProps,
   );
+
+  useEffect(() => {
+    incrementComponentStateSubscriberCount(componentState.key, instanceId);
+    return () => {
+      decrementComponentStateSubscriberCount(componentState.key, instanceId);
+    };
+  }, [componentState.key, instanceId]);
 
   return useMemo(
     () => componentState.atomFamily({ instanceId }),
