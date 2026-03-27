@@ -5,6 +5,7 @@ import { type ObjectRecordOperationBrowserEventDetail } from '@/browser-event/ty
 import { useGetShouldInitializeRecordBoardForUpdateInputs } from '@/object-record/record-board/hooks/useGetShouldInitializeRecordBoardForUpdateInputs';
 import { useRemoveRecordsFromBoard } from '@/object-record/record-board/hooks/useRemoveRecordsFromBoard';
 import { useTriggerRecordBoardInitialQuery } from '@/object-record/record-board/hooks/useTriggerRecordBoardInitialQuery';
+import { isRecordBoardDropProcessingComponentState } from '@/object-record/record-board/states/isRecordBoardDropProcessingComponentState';
 import { recordGroupFromGroupValueComponentFamilySelector } from '@/object-record/record-group/states/selectors/recordGroupFromGroupValueComponentFamilySelector';
 import { useRecordIndexContextOrThrow } from '@/object-record/record-index/contexts/RecordIndexContext';
 import { recordIndexGroupFieldMetadataItemComponentState } from '@/object-record/record-index/states/recordIndexGroupFieldMetadataComponentState';
@@ -15,6 +16,7 @@ import { useAtomComponentFamilyStateCallbackState } from '@/ui/utilities/state/j
 import { useAtomComponentStateCallbackState } from '@/ui/utilities/state/jotai/hooks/useAtomComponentStateCallbackState';
 import { useCallback } from 'react';
 import { isDefined } from 'twenty-shared/utils';
+import { useDebouncedCallback } from 'use-debounce';
 
 export const RecordBoardDataChangedEffect = () => {
   const store = useStore();
@@ -38,6 +40,23 @@ export const RecordBoardDataChangedEffect = () => {
 
   const { removeRecordsFromBoard } = useRemoveRecordsFromBoard();
 
+  const isRecordBoardDropProcessingCallbackState =
+    useAtomComponentStateCallbackState(
+      isRecordBoardDropProcessingComponentState,
+    );
+
+  // Temporarily disable drag during board data changes to prevent
+  // @hello-pangea/dnd invariant errors when draggable components
+  // unmount/remount during re-renders triggered by data mutations
+  const debouncedReEnableDrag = useDebouncedCallback(() => {
+    store.set(isRecordBoardDropProcessingCallbackState, false);
+  }, 500);
+
+  const disableDragDuringBoardUpdate = useCallback(() => {
+    store.set(isRecordBoardDropProcessingCallbackState, true);
+    debouncedReEnableDrag();
+  }, [store, isRecordBoardDropProcessingCallbackState, debouncedReEnableDrag]);
+
   const handleObjectRecordOperation = useCallback(
     (
       objectRecordOperationEventDetail: ObjectRecordOperationBrowserEventDetail,
@@ -57,12 +76,14 @@ export const RecordBoardDataChangedEffect = () => {
               getShouldInitializeRecordBoardForUpdateInputs(updateInputs);
 
             if (shouldInitializeForUpdateOperation) {
+              disableDragDuringBoardUpdate();
               triggerRecordBoardInitialQuery();
             }
           }
           break;
         case 'create-one': {
           if (objectRecordOperation.createdRecord.position === 'first') {
+            disableDragDuringBoardUpdate();
             triggerRecordBoardInitialQuery();
           } else {
             const createdRecordPosition =
@@ -106,6 +127,7 @@ export const RecordBoardDataChangedEffect = () => {
             const groupIsEmpty = recordIdsWithoutCreatedRecord.length === 0;
 
             if (groupIsEmpty) {
+              disableDragDuringBoardUpdate();
               triggerRecordBoardInitialQuery();
               return;
             }
@@ -122,6 +144,7 @@ export const RecordBoardDataChangedEffect = () => {
             if (
               createdRecordPosition < (firstExistingRecordInGroup.position ?? 0)
             ) {
+              disableDragDuringBoardUpdate();
               triggerRecordBoardInitialQuery();
             }
           }
@@ -130,6 +153,7 @@ export const RecordBoardDataChangedEffect = () => {
         case 'delete-one': {
           const removedRecordId = objectRecordOperation.deletedRecordId;
 
+          disableDragDuringBoardUpdate();
           removeRecordsFromBoard({
             recordIdsToRemove: [removedRecordId],
           });
@@ -138,6 +162,7 @@ export const RecordBoardDataChangedEffect = () => {
         case 'delete-many': {
           const removedRecordIds = objectRecordOperation.deletedRecordIds;
 
+          disableDragDuringBoardUpdate();
           removeRecordsFromBoard({
             recordIdsToRemove: removedRecordIds,
           });
@@ -148,6 +173,7 @@ export const RecordBoardDataChangedEffect = () => {
           return;
         }
         default: {
+          disableDragDuringBoardUpdate();
           triggerRecordBoardInitialQuery();
         }
       }
@@ -160,6 +186,7 @@ export const RecordBoardDataChangedEffect = () => {
       recordGroupFromGroupValueCallbackState,
       recordIndexRecordIdsByGroupCallbackState,
       removeRecordsFromBoard,
+      disableDragDuringBoardUpdate,
     ],
   );
 
