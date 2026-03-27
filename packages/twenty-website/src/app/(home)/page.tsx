@@ -34,7 +34,7 @@ export default function HomePage() {
         </Hero.Cta>
         <Hero.Visual>
           <Image src="/images/home/hero/background.png" alt="" />
-          <Image src="/images/home/hero/foreground.png" alt="" />;
+          <Image src="/images/home/hero/foreground.png" alt="" />
         </Hero.Visual>
       </Hero.Root>
 
