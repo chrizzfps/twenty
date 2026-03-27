@@ -196,10 +196,6 @@ export class DevModeOrchestrator {
       });
 
       this.skipTypecheck = false;
-
-      await this.uploadFilesStep.copyAndUploadApiClientFiles(
-        this.state.appPath,
-      );
     }
   }
 
@@ -217,6 +213,7 @@ export class DevModeOrchestrator {
           message: 'Failed to create development application',
           status: 'error',
         },
+        { message: JSON.stringify(createResult, null, 2), status: 'error' },
       ]);
       this.state.updatePipeline({ status: 'error' });
 

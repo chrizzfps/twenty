@@ -3,7 +3,7 @@ import { POST_CARD_UNIVERSAL_IDENTIFIER } from '../objects/post-card.object';
 
 export default defineField({
   objectUniversalIdentifier: POST_CARD_UNIVERSAL_IDENTIFIER,
-  universalIdentifier: 'bac30e8b-8811-496b-95d0-ad75f46155df',
+  universalIdentifier: '7b57bd63-5a4c-46ca-9d52-42c8f02d1df6',
   type: FieldType.NUMBER,
   name: 'priority',
   label: 'Priority',

@@ -3,7 +3,7 @@ import { POST_CARD_UNIVERSAL_IDENTIFIER } from '../objects/post-card.object';
 
 export default defineField({
   objectUniversalIdentifier: POST_CARD_UNIVERSAL_IDENTIFIER,
-  universalIdentifier: 'b82cc3d6-bf9b-4e24-b2b8-14056c3b2c4c',
+  universalIdentifier: 'b602dbd9-e511-49ce-b6d3-b697218dc69c',
   type: FieldType.SELECT,
   name: 'category',
   label: 'Category',

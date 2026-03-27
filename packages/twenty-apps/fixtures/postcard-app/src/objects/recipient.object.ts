@@ -28,7 +28,7 @@ export default defineObject({
     {
       universalIdentifier: RECIPIENT_ADDRESS_FIELD_UNIVERSAL_IDENTIFIER,
       type: FieldType.ADDRESS,
-      label: 'Address',
+      label: 'Mailing Address',
       name: 'mailingAddress',
       icon: 'IconHome',
     },

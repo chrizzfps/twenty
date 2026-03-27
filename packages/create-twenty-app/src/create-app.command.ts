@@ -1,17 +1,18 @@
 import { copyBaseApplicationProject } from '@/utils/app-template';
 import { convertToLabel } from '@/utils/convert-to-label';
 import { install } from '@/utils/install';
-import {
-  type LocalInstanceResult,
-  setupLocalInstance,
-} from '@/utils/setup-local-instance';
 import { tryGitInit } from '@/utils/try-git-init';
 import chalk from 'chalk';
 import * as fs from 'fs-extra';
 import inquirer from 'inquirer';
 import kebabCase from 'lodash.kebabcase';
-import { execSync } from 'node:child_process';
 import * as path from 'path';
+import { basename } from 'path';
+import {
+  authLoginOAuth,
+  serverStart,
+  type ServerStartResult,
+} from 'twenty-sdk/cli';
 import { isDefined } from 'twenty-shared/utils';
 
 import {
@@ -32,10 +33,10 @@ type CreateAppOptions = {
 
 export class CreateAppCommand {
   async execute(options: CreateAppOptions = {}): Promise<void> {
-    try {
-      const { appName, appDisplayName, appDirectory, appDescription } =
-        await this.getAppInfos(options);
+    const { appName, appDisplayName, appDirectory, appDescription } =
+      await this.getAppInfos(options);
 
+    try {
       const exampleOptions = this.resolveExampleOptions(
         options.mode ?? 'exhaustive',
       );
@@ -58,32 +59,25 @@ export class CreateAppCommand {
 
       await tryGitInit(appDirectory);
 
-      let localResult: LocalInstanceResult = { running: false };
+      let serverResult: ServerStartResult | undefined;
 
       if (!options.skipLocalInstance) {
-        const { needsLocalInstance } = await inquirer.prompt([
-          {
-            type: 'confirm',
-            name: 'needsLocalInstance',
-            message:
-              'Do you need a local instance of Twenty? Recommended if you not have one already.',
-            default: true,
-          },
-        ]);
+        const startResult = await serverStart({
+          onProgress: (message: string) => console.log(chalk.gray(message)),
+        });
 
-        if (needsLocalInstance) {
-          localResult = await setupLocalInstance();
-        }
-
-        if (isDefined(localResult.apiKey)) {
-          this.runAuthLogin(appDirectory, localResult.apiKey);
+        if (startResult.success) {
+          serverResult = startResult.data;
+          await this.connectToLocal(serverResult.url);
+        } else {
+          console.log(chalk.yellow(`\n${startResult.error.message}`));
         }
       }
 
-      this.logSuccess(appDirectory, localResult);
+      this.logSuccess(appDirectory, serverResult);
     } catch (error) {
       console.error(
-        chalk.red('Initialization failed:'),
+        chalk.red('\nCreate application failed:'),
         error instanceof Error ? error.message : error,
       );
       process.exit(1);
@@ -201,23 +195,30 @@ export class CreateAppCommand {
     appDirectory: string;
     appName: string;
   }): void {
-    console.log(chalk.blue('🎯 Creating Twenty Application'));
-    console.log(chalk.gray(`📁 Directory: ${appDirectory}`));
-    console.log(chalk.gray(`📝 Name: ${appName}`));
-    console.log('');
+    console.log(
+      chalk.blue('\n', 'Creating Twenty Application\n'),
+      chalk.gray(`- Directory: ${appDirectory}\n`, `- Name: ${appName}\n`),
+    );
   }
 
-  private runAuthLogin(appDirectory: string, apiKey: string): void {
+  private async connectToLocal(serverUrl: string): Promise<void> {
     try {
-      execSync(
-        `yarn twenty auth:login --api-key "${apiKey}" --api-url http://localhost:3000`,
-        { cwd: appDirectory, stdio: 'inherit' },
-      );
-      console.log(chalk.green('✅ Authenticated with local Twenty instance.'));
+      const result = await authLoginOAuth({
+        apiUrl: serverUrl,
+        remote: 'local',
+      });
+
+      if (!result.success) {
+        console.log(
+          chalk.yellow(
+            'Authentication skipped. Run `yarn twenty remote add --local` manually.',
+          ),
+        );
+      }
     } catch {
       console.log(
         chalk.yellow(
-          '⚠️  Auto auth:login failed. Run `yarn twenty auth:login` manually.',
+          'Authentication skipped. Run `yarn twenty remote add --local` manually.',
         ),
       );
     }
@@ -225,31 +226,23 @@ export class CreateAppCommand {
 
   private logSuccess(
     appDirectory: string,
-    localResult: LocalInstanceResult,
+    serverResult?: ServerStartResult,
   ): void {
-    const dirName = appDirectory.split('/').reverse()[0] ?? '';
+    const dirName = basename(appDirectory);
 
-    console.log(chalk.green('✅ Application created!'));
-    console.log('');
-    console.log(chalk.blue('Next steps:'));
-    console.log(chalk.gray(`  cd ${dirName}`));
+    console.log(chalk.blue('\nApplication created. Next steps:'));
+    console.log(chalk.gray(`- cd ${dirName}`));
 
-    if (localResult.apiKey) {
-      console.log(chalk.gray('  yarn twenty app:dev     # Start dev mode'));
-    } else if (localResult.running) {
+    if (!serverResult) {
       console.log(
         chalk.gray(
-          '  yarn twenty remote add --local  # Authenticate with Twenty',
+          '- yarn twenty remote add --local  # Authenticate with Twenty',
         ),
       );
-      console.log(chalk.gray('  yarn twenty app:dev     # Start dev mode'));
-    } else {
-      console.log(
-        chalk.gray(
-          '  yarn twenty remote add --local  # Authenticate with Twenty',
-        ),
-      );
-      console.log(chalk.gray('  yarn twenty app:dev     # Start dev mode'));
     }
+
+    console.log(
+      chalk.gray('- yarn twenty dev                  # Start dev mode'),
+    );
   }
 }
