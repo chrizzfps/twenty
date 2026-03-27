@@ -72,34 +72,39 @@ export const SettingsUsageUserDetail = () => {
   const dailyDates = getPeriodDates(dailyPeriod);
   const typeDates = getPeriodDates(typePeriod);
 
-  const { data: dailyData, loading: dailyLoading } = useQuery(
-    GetUsageAnalyticsDocument,
-    {
-      variables: {
-        input: {
-          ...dailyDates,
-          userWorkspaceId,
-        },
+  const {
+    data: dailyData,
+    loading: dailyLoading,
+    previousData: previousDailyData,
+  } = useQuery(GetUsageAnalyticsDocument, {
+    variables: {
+      input: {
+        ...dailyDates,
+        userWorkspaceId,
       },
-      skip: !userWorkspaceId,
     },
-  );
+    skip: !userWorkspaceId,
+  });
 
-  const { data: typeData, loading: typeLoading } = useQuery(
-    GetUsageAnalyticsDocument,
-    {
-      variables: {
-        input: {
-          ...typeDates,
-          userWorkspaceId,
-        },
+  const {
+    data: typeData,
+    loading: typeLoading,
+    previousData: previousTypeData,
+  } = useQuery(GetUsageAnalyticsDocument, {
+    variables: {
+      input: {
+        ...typeDates,
+        userWorkspaceId,
       },
-      skip: !userWorkspaceId,
     },
-  );
+    skip: !userWorkspaceId,
+  });
 
-  const dailyAnalytics = dailyData?.getUsageAnalytics;
-  const typeAnalytics = typeData?.getUsageAnalytics;
+  const effectiveDailyData = dailyData ?? previousDailyData;
+  const effectiveTypeData = typeData ?? previousTypeData;
+
+  const dailyAnalytics = effectiveDailyData?.getUsageAnalytics;
+  const typeAnalytics = effectiveTypeData?.getUsageAnalytics;
 
   const userDailyUsage = dailyAnalytics?.userDailyUsage?.dailyUsage ?? [];
   const usageByOperationType = typeAnalytics?.usageByOperationType ?? [];
@@ -135,7 +140,8 @@ export const SettingsUsageUserDetail = () => {
   ];
 
   const isInitialLoading =
-    (dailyLoading || typeLoading) && !dailyData && !typeData;
+    (dailyLoading && !effectiveDailyData) ||
+    (typeLoading && !effectiveTypeData);
 
   const breadcrumbLinks = [
     {

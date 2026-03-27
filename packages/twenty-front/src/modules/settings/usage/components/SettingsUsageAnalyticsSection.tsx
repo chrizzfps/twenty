@@ -61,32 +61,48 @@ export const SettingsUsageAnalyticsSection = () => {
   const dailyDates = getPeriodDates(dailyPeriod);
   const userDates = getPeriodDates(userPeriod);
 
-  const { data: typeData, loading: typeLoading } = useQuery(
-    GetUsageAnalyticsDocument,
-    { variables: { input: typeDates } },
-  );
+  const {
+    data: typeData,
+    loading: typeLoading,
+    previousData: previousTypeData,
+  } = useQuery(GetUsageAnalyticsDocument, {
+    variables: { input: typeDates },
+  });
 
-  const { data: dailyData, loading: dailyLoading } = useQuery(
-    GetUsageAnalyticsDocument,
-    { variables: { input: dailyDates } },
-  );
+  const {
+    data: dailyData,
+    loading: dailyLoading,
+    previousData: previousDailyData,
+  } = useQuery(GetUsageAnalyticsDocument, {
+    variables: { input: dailyDates },
+  });
 
-  const { data: userData, loading: userLoading } = useQuery(
-    GetUsageAnalyticsDocument,
-    { variables: { input: userDates } },
-  );
+  const {
+    data: userData,
+    loading: userLoading,
+    previousData: previousUserData,
+  } = useQuery(GetUsageAnalyticsDocument, {
+    variables: { input: userDates },
+  });
 
-  const typeAnalytics = typeData?.getUsageAnalytics;
-  const dailyAnalytics = dailyData?.getUsageAnalytics;
-  const userAnalytics = userData?.getUsageAnalytics;
+  const effectiveTypeData = typeData ?? previousTypeData;
+  const effectiveDailyData = dailyData ?? previousDailyData;
+  const effectiveUserData = userData ?? previousUserData;
+
+  const typeAnalytics = effectiveTypeData?.getUsageAnalytics;
+  const dailyAnalytics = effectiveDailyData?.getUsageAnalytics;
+  const userAnalytics = effectiveUserData?.getUsageAnalytics;
 
   const usageByOperationType = typeAnalytics?.usageByOperationType ?? [];
   const timeSeries = dailyAnalytics?.timeSeries ?? [];
   const usageByUser = userAnalytics?.usageByUser ?? [];
 
-  const anyLoading = typeLoading || dailyLoading || userLoading;
+  const isInitialLoading =
+    (typeLoading && !effectiveTypeData) ||
+    (dailyLoading && !effectiveDailyData) ||
+    (userLoading && !effectiveUserData);
 
-  if (anyLoading) {
+  if (isInitialLoading) {
     return null;
   }
 
