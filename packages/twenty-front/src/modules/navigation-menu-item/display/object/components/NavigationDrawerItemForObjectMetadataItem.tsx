@@ -16,7 +16,6 @@ import { useObjectPermissions } from '@/object-record/hooks/useObjectPermissions
 import { NavigationDrawerItem } from '@/ui/navigation/navigation-drawer/components/NavigationDrawerItem';
 import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 import { viewsSelector } from '@/views/states/selectors/viewsSelector';
-import { ViewKey } from '@/views/types/ViewKey';
 import { useLocation } from 'react-router-dom';
 import {
   AppPath,
@@ -114,17 +113,14 @@ export const NavigationDrawerItemForObjectMetadataItem = ({
   const view = isDefined(navigationMenuItem?.viewId)
     ? views.find((view) => view.id === navigationMenuItem!.viewId)
     : undefined;
-  const viewKey = view?.key ?? null;
-
-  const isViewWithCustomName =
-    isView && viewKey !== ViewKey.INDEX && isDefined(view);
+  const isViewWithResolvedView = isView && isDefined(view);
 
   const itemLabel = isDefined(navigationMenuItem)
     ? getNavigationMenuItemLabel(navigationMenuItem, objectMetadataItems, views)
     : objectMetadataItem.labelPlural;
 
   const primaryLabel =
-    isRecord || isViewWithCustomName
+    isRecord || isViewWithResolvedView
       ? itemLabel
       : objectMetadataItem.labelPlural;
 
@@ -157,7 +153,7 @@ export const NavigationDrawerItemForObjectMetadataItem = ({
           placeholder={itemLabel}
         />
       )
-    : isViewWithCustomName && isDefined(view?.icon)
+    : isViewWithResolvedView && isDefined(view?.icon)
       ? () => (
           <ObjectIconWithViewOverlay
             ObjectIcon={getIcon(objectMetadataItem.icon)}
@@ -170,7 +166,7 @@ export const NavigationDrawerItemForObjectMetadataItem = ({
   const iconThemeColor = !isRecord ? objectNavItemColor : undefined;
 
   const secondaryLabel =
-    isRecord || isViewWithCustomName
+    isRecord || isViewWithResolvedView
       ? objectMetadataItem.labelSingular
       : undefined;
 

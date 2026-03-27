@@ -1,9 +1,4 @@
-import { useStore } from 'jotai';
-import { useCallback } from 'react';
-import { matchPath, useLocation, useNavigate } from 'react-router-dom';
-import { AppPath } from 'twenty-shared/types';
-import { isDefined } from 'twenty-shared/utils';
-
+import { commandMenuItemsDraftState } from '@/command-menu-item/server-items/edit/states/commandMenuItemsDraftState';
 import { activeCustomizationPageLayoutIdsState } from '@/layout-customization/states/activeCustomizationPageLayoutIdsState';
 import { isLayoutCustomizationModeEnabledState } from '@/layout-customization/states/isLayoutCustomizationModeEnabledState';
 import { navigationMenuItemsDraftState } from '@/navigation-menu-item/common/states/navigationMenuItemsDraftState';
@@ -16,6 +11,11 @@ import { currentPageLayoutIdState } from '@/page-layout/states/currentPageLayout
 import { useSidePanelMenu } from '@/side-panel/hooks/useSidePanelMenu';
 import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 import { useSetAtomState } from '@/ui/utilities/state/jotai/hooks/useSetAtomState';
+import { useStore } from 'jotai';
+import { useCallback } from 'react';
+import { matchPath, useLocation, useNavigate } from 'react-router-dom';
+import { AppPath } from 'twenty-shared/types';
+import { isDefined } from 'twenty-shared/utils';
 
 export const useExitLayoutCustomizationMode = () => {
   const store = useStore();
@@ -39,6 +39,7 @@ export const useExitLayoutCustomizationMode = () => {
   const finalizeExit = useCallback(() => {
     setNavigationMenuItemsDraft(null);
     setSelectedNavigationMenuItemIdInEditMode(null);
+    store.set(commandMenuItemsDraftState.atom, null);
 
     store.set(currentPageLayoutIdState.atom, null);
     store.set(activeCustomizationPageLayoutIdsState.atom, []);
