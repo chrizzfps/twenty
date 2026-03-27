@@ -5,6 +5,7 @@ import { GraphWidgetLineChart } from '@/page-layout/widgets/graph/graph-widget-l
 import { type LineChartSeriesWithColor } from '@/page-layout/widgets/graph/graph-widget-line-chart/types/LineChartSeriesWithColor';
 import { createGraphColorRegistry } from '@/page-layout/widgets/graph/utils/createGraphColorRegistry';
 import { getColorSchemeByIndex } from '@/page-layout/widgets/graph/utils/getColorSchemeByIndex';
+import { WidgetComponentInstanceContext } from '@/page-layout/widgets/states/contexts/WidgetComponentInstanceContext';
 import { Select } from '@/ui/input/components/Select';
 import { Table } from '@/ui/layout/table/components/Table';
 import { TableCell } from '@/ui/layout/table/components/TableCell';
@@ -182,13 +183,17 @@ export const SettingsUsageAnalyticsSection = () => {
           />
           <SubscriptionInfoContainer>
             <StyledLineChartContainer>
-              <GraphWidgetLineChart
-                id="usage-daily-line-chart"
-                data={lineData}
-                colorMode="automaticPalette"
-                showLegend={false}
-                enableArea
-              />
+              <WidgetComponentInstanceContext.Provider
+                value={{ instanceId: 'usage-daily-line-chart' }}
+              >
+                <GraphWidgetLineChart
+                  id="usage-daily-line-chart"
+                  data={lineData}
+                  colorMode="automaticPalette"
+                  showLegend={false}
+                  enableArea
+                />
+              </WidgetComponentInstanceContext.Provider>
             </StyledLineChartContainer>
           </SubscriptionInfoContainer>
         </Section>

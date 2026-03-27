@@ -5,6 +5,7 @@ import { GraphWidgetLineChart } from '@/page-layout/widgets/graph/graph-widget-l
 import { type LineChartSeriesWithColor } from '@/page-layout/widgets/graph/graph-widget-line-chart/types/LineChartSeriesWithColor';
 import { createGraphColorRegistry } from '@/page-layout/widgets/graph/utils/createGraphColorRegistry';
 import { getColorSchemeByIndex } from '@/page-layout/widgets/graph/utils/getColorSchemeByIndex';
+import { WidgetComponentInstanceContext } from '@/page-layout/widgets/states/contexts/WidgetComponentInstanceContext';
 import { Select } from '@/ui/input/components/Select';
 import { SettingsPageContainer } from '@/settings/components/SettingsPageContainer';
 import { SubMenuTopBarContainer } from '@/ui/layout/page/components/SubMenuTopBarContainer';
@@ -238,13 +239,17 @@ export const SettingsUsageUserDetail = () => {
             />
             <SubscriptionInfoContainer>
               <StyledLineChartContainer>
-                <GraphWidgetLineChart
-                  id="user-daily-line-chart"
-                  data={lineData}
-                  colorMode="automaticPalette"
-                  showLegend={false}
-                  enableArea
-                />
+                <WidgetComponentInstanceContext.Provider
+                  value={{ instanceId: 'user-daily-line-chart' }}
+                >
+                  <GraphWidgetLineChart
+                    id="user-daily-line-chart"
+                    data={lineData}
+                    colorMode="automaticPalette"
+                    showLegend={false}
+                    enableArea
+                  />
+                </WidgetComponentInstanceContext.Provider>
               </StyledLineChartContainer>
             </SubscriptionInfoContainer>
           </Section>
